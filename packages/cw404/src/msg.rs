@@ -83,14 +83,6 @@ pub enum ExecuteMsg {
     Burn {
         token_id: String,
     },
-    // ========== my own NFT functions ==========
-    Mint {
-        owner: String,
-    },
-    BatchMint {
-        owner: String,
-        amount: Uint64,
-    },
 }
 
 // ========== query ==========

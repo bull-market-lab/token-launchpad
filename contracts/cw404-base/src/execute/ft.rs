@@ -1,7 +1,8 @@
-use super::nft::batch_mint as batch_mint_nft;
 use crate::{
     error::ContractError,
-    util::assert::assert_max_base_denom_supply_not_reached,
+    util::{
+        assert::assert_max_base_denom_supply_not_reached, nft::batch_mint_nft,
+    },
 };
 use cosmwasm_std::{
     coins, Addr, BankMsg, BankQuery, DepsMut, QueryRequest, Response,
@@ -41,7 +42,6 @@ pub fn mint_tokens(
         sender_addr_ref,
         max_denom_supply,
         Uint64::from((amount / one_denom_in_base_denom).u128() as u64),
-        false,
     )?;
 
     let mint_ft_msg = MsgMint {

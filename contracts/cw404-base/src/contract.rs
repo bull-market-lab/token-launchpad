@@ -2,7 +2,7 @@ use crate::{
     error::ContractError,
     execute::{
         ft::{burn_tokens, force_transfer, mint_tokens, send_tokens},
-        nft::{batch_mint, burn, mint, send_nft, transfer_nft},
+        nft::{burn, send_nft, transfer_nft},
     },
     state::{ADMIN_ADDR, MAX_DENOM_SUPPLY, METADATA, SUBDENOM},
     util::{
@@ -288,44 +288,6 @@ pub fn execute(
                 one_denom_in_base_denom,
                 base_denom,
                 sender_addr_ref,
-            )
-        }
-        // ======== my own NFT functions ==========
-        ExecuteMsg::Mint { owner } => {
-            assert_only_admin_can_call_this_function(
-                sender_addr_ref,
-                &admin_addr_ref,
-                "mint",
-            )?;
-            mint(
-                deps,
-                contract_addr_str,
-                one_denom_in_base_denom,
-                base_denom,
-                owner,
-                sender_addr_ref,
-                max_denom_supply,
-            )
-        }
-        ExecuteMsg::BatchMint { owner, amount } => {
-            assert_only_admin_can_call_this_function(
-                sender_addr_ref,
-                &admin_addr_ref,
-                "batch_mint",
-            )?;
-            if amount == Uint64::zero() {
-                return Err(ContractError::CannotMintZeroAmount {});
-            }
-            batch_mint(
-                deps,
-                contract_addr_str,
-                one_denom_in_base_denom,
-                base_denom,
-                owner,
-                sender_addr_ref,
-                max_denom_supply,
-                amount,
-                true,
             )
         }
     }
