@@ -100,7 +100,7 @@ pub enum ContractError {
     CustomError { val: String },
 
     #[error("Expect exactly one denom unit, received: {count:?}")]
-    ExpectExactlyOneDenomUnit { count: Uint64 },
+    ExpectExactlyOneDenomUnit { count: Uint128 },
 
     #[error("Max base denom (FT in smallest unit) supply reached: current supply {current_base_denom_supply:?}, max supply {max_base_denom_supply:?}, mint amount {mint_amount:?}")]
     MaxBaseDenomSupplyReached {
@@ -111,13 +111,13 @@ pub enum ContractError {
 
     #[error("Max NFT supply reached: current supply {current_nft_supply:?}, max supply {max_nft_supply:?}, mint amount {mint_amount:?}")]
     MaxNftSupplyReached {
-        current_nft_supply: Uint64,
-        max_nft_supply: Uint64,
-        mint_amount: Uint64,
+        current_nft_supply: Uint128,
+        max_nft_supply: Uint128,
+        mint_amount: Uint128,
     },
 
     #[error("Token ID {token_id:?} already in use")]
-    TokenIdAlreadyInUse { token_id: Uint64 },
+    TokenIdAlreadyInUse { token_id: Uint128 },
 
     #[error("No access to send NFT")]
     NoAccessToSend {},
@@ -130,8 +130,8 @@ pub enum ContractError {
 
     #[error("Cannot burn more NFT than owned, available: {available:?}, try to burn: {try_to_burn:?}")]
     CannotBurnMoreNftThanOwned {
-        available: Uint64,
-        try_to_burn: Uint64,
+        available: Uint128,
+        try_to_burn: Uint128,
     },
 
     #[error("Expired")]

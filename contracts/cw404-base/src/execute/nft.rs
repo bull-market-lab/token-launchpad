@@ -6,9 +6,7 @@ use crate::{
         nft::{transfer_nft_helper, update_approvals},
     },
 };
-use cosmwasm_std::{
-    Addr, Binary, BlockInfo, Response, Storage, Uint128, Uint64,
-};
+use cosmwasm_std::{Addr, Binary, BlockInfo, Response, Storage, Uint128};
 use cw721::Cw721ReceiveMsg;
 use cw_utils::Expiration;
 use osmosis_std::types::{
@@ -21,7 +19,7 @@ pub fn approve_nft(
     block: &BlockInfo,
     sender_addr: &Addr,
     spender_addr: &Addr,
-    token_id: Uint64,
+    token_id: Uint128,
     expires: Option<Expiration>,
 ) -> Result<Response, ContractError> {
     update_approvals(
@@ -67,7 +65,7 @@ pub fn revoke_nft(
     block: &BlockInfo,
     sender_addr: &Addr,
     spender_addr: &Addr,
-    token_id: Uint64,
+    token_id: Uint128,
 ) -> Result<Response, ContractError> {
     update_approvals(
         storage,
@@ -104,7 +102,7 @@ pub fn transfer_nft(
     block: &BlockInfo,
     sender_addr: &Addr,
     recipient_addr: &Addr,
-    token_id: Uint64,
+    token_id: Uint128,
     one_denom_in_base_denom: Uint128,
     base_denom: String,
     contract_addr: &Addr,
@@ -132,7 +130,7 @@ pub fn send_nft(
     storage: &mut dyn Storage,
     block: &BlockInfo,
     sender_addr: &Addr,
-    token_id: Uint64,
+    token_id: Uint128,
     one_denom_in_base_denom: Uint128,
     base_denom: String,
     contract_addr: &Addr,
@@ -176,7 +174,7 @@ pub fn burn_nft(
     storage_mut_ref: &mut dyn Storage,
     block: &BlockInfo,
     contract_addr: &Addr,
-    token_id: Uint64,
+    token_id: Uint128,
     one_denom_in_base_denom: Uint128,
     base_denom: String,
     sender_addr: &Addr,
@@ -185,9 +183,9 @@ pub fn burn_nft(
 
     RECYCLED_NFT_IDS.push_back(storage_mut_ref, &token_id)?;
 
-    NFTS().remove(storage_mut_ref, token_id.u64())?;
+    NFTS().remove(storage_mut_ref, token_id.u128())?;
     let updated_nft_supply =
-        CURRENT_NFT_SUPPLY.load(storage_mut_ref)? - Uint64::one();
+        CURRENT_NFT_SUPPLY.load(storage_mut_ref)? - Uint128::one();
     CURRENT_NFT_SUPPLY.save(storage_mut_ref, &updated_nft_supply)?;
 
     let msg = MsgBurn {

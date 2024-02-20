@@ -6,8 +6,8 @@ use crate::{
     },
 };
 use cosmwasm_std::{
-    coins, BankMsg, BankQuery, DepsMut, QueryRequest, Response, SupplyResponse,
-    Uint128, Uint64,
+    coins, Addr, BankMsg, BankQuery, QuerierWrapper, QueryRequest, Response,
+    Storage, SupplyResponse, Uint128,
 };
 use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as SdkCoin,
@@ -15,16 +15,17 @@ use osmosis_std::types::{
 };
 
 pub fn mint_ft(
-    deps: DepsMut,
+    storage: &mut dyn Storage,
+    querier: QuerierWrapper,
     amount: Uint128,
-    max_denom_supply: Uint64,
+    max_denom_supply: Uint128,
     base_denom: String,
     one_denom_in_base_denom: Uint128,
     denom: String,
-    contract_addr_str: String,
+    contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
     let current_base_denom_supply: SupplyResponse =
-        deps.querier.query(&QueryRequest::Bank(BankQuery::Supply {
+        querier.query(&QueryRequest::Bank(BankQuery::Supply {
             denom: base_denom.clone(),
         }))?;
     assert_max_base_denom_supply_not_reached(
@@ -34,19 +35,19 @@ pub fn mint_ft(
     )?;
 
     batch_mint_nft(
-        deps,
-        contract_addr_str.clone(),
+        storage,
+        contract_addr,
         max_denom_supply,
-        Uint64::from((amount / one_denom_in_base_denom).u128() as u64),
+        amount / one_denom_in_base_denom,
     )?;
 
     let mint_ft_msg = MsgMint {
-        sender: contract_addr_str.clone(),
+        sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: amount.to_string(),
             denom: denom.clone(),
         }),
-        mint_to_address: contract_addr_str,
+        mint_to_address: contract_addr.to_string(),
     };
     Ok(Response::new()
         .add_message(mint_ft_msg)
@@ -56,25 +57,21 @@ pub fn mint_ft(
 }
 
 pub fn burn_ft(
-    deps: DepsMut,
+    storage: &mut dyn Storage,
     amount: Uint128,
     one_denom_in_base_denom: Uint128,
     denom: String,
-    contract_addr_str: String,
+    contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
-    batch_burn_nft(
-        deps,
-        contract_addr_str.clone(),
-        Uint64::from((amount / one_denom_in_base_denom).u128() as u64),
-    )?;
+    batch_burn_nft(storage, contract_addr, amount / one_denom_in_base_denom)?;
 
     let msg = MsgBurn {
-        sender: contract_addr_str.clone(),
+        sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: amount.to_string(),
             denom: denom.clone(),
         }),
-        burn_from_address: contract_addr_str,
+        burn_from_address: contract_addr.to_string(),
     };
     Ok(Response::new()
         .add_message(msg)

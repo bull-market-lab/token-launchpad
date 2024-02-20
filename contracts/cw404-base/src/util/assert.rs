@@ -2,7 +2,7 @@ use crate::{
     error::ContractError,
     state::{NFTS, NFT_OPERATORS},
 };
-use cosmwasm_std::{Addr, BlockInfo, Storage, Uint128, Uint64};
+use cosmwasm_std::{Addr, BlockInfo, Storage, Uint128};
 
 pub fn assert_only_admin_can_call_this_function(
     sender: &Addr,
@@ -33,9 +33,9 @@ pub fn assert_max_base_denom_supply_not_reached(
 }
 
 pub fn assert_max_nft_supply_not_reached(
-    current_nft_supply: Uint64,
-    max_nft_supply: Uint64,
-    mint_amount: Uint64,
+    current_nft_supply: Uint128,
+    max_nft_supply: Uint128,
+    mint_amount: Uint128,
 ) -> Result<(), ContractError> {
     if current_nft_supply + mint_amount > max_nft_supply {
         return Err(ContractError::MaxNftSupplyReached {
@@ -52,9 +52,9 @@ pub fn assert_can_send(
     storage: &dyn Storage,
     block: &BlockInfo,
     sender_addr_ref: &Addr,
-    token_id: Uint64,
+    token_id: Uint128,
 ) -> Result<(), ContractError> {
-    let nft = NFTS().load(storage, token_id.u64())?;
+    let nft = NFTS().load(storage, token_id.u128())?;
 
     // owner can send
     if nft.owner == sender_addr_ref {

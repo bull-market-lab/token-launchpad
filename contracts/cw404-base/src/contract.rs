@@ -1,6 +1,7 @@
 use crate::{
     error::ContractError,
     execute::{
+        config::change_admin,
         ft::{burn_ft, force_transfer_ft, mint_ft, send_ft},
         nft::{
             approve_all_nft, approve_nft, burn_nft, revoke_all_nft, revoke_nft,
@@ -19,12 +20,12 @@ use crate::{
     util::{
         assert::assert_only_admin_can_call_this_function,
         denom::get_full_denom_from_subdenom,
-        nft::parse_token_id_from_string_to_uint64,
+        nft::parse_token_id_from_string_to_uint128,
     },
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdResult, Uint128, Uint64,
+    MessageInfo, Reply, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
 use cw404::msg::{
@@ -52,7 +53,7 @@ pub fn instantiate(
     nonpayable(&info)?;
     if msg.denom_metadata.denom_units.len() != 1 {
         return Err(ContractError::ExpectExactlyOneDenomUnit {
-            count: Uint64::from(msg.denom_metadata.denom_units.len() as u32),
+            count: Uint128::from(msg.denom_metadata.denom_units.len() as u32),
         });
     }
 
@@ -71,7 +72,7 @@ pub fn instantiate(
     SUBDENOM.save(deps.storage, &msg.subdenom)?;
     MAX_NFT_SUPPLY.save(deps.storage, &msg.max_nft_supply)?;
     METADATA.save(deps.storage, &msg.denom_metadata)?;
-    CURRENT_NFT_SUPPLY.save(deps.storage, &Uint64::zero())?;
+    CURRENT_NFT_SUPPLY.save(deps.storage, &Uint128::zero())?;
 
     let full_denom =
         get_full_denom_from_subdenom(&contract_addr, &msg.subdenom);
@@ -118,6 +119,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     let info_ref = &info;
+    nonpayable(info_ref)?;
+
     let sender_addr_ref = &info.clone().sender;
     let contract_addr = env.clone().contract.address;
     let contract_addr_ref = &contract_addr;
@@ -135,57 +138,52 @@ pub fn execute(
     let one_denom_in_base_denom = Uint128::from(10u128.pow(denom_exponent));
     match msg {
         ExecuteMsg::ChangeAdmin { new_admin_addr } => {
-            nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
                 "change_admin",
             )?;
-            let new_admin_addr = deps.api.addr_validate(&new_admin_addr)?;
-            ADMIN_ADDR.save(deps.storage, &new_admin_addr)?;
-            Ok(Response::new()
-                .add_attribute("token_type", "ft")
-                .add_attribute("action", "change_admin")
-                .add_attribute("new_admin_addr", new_admin_addr))
+            change_admin(
+                deps.storage,
+                &deps.api.addr_validate(&new_admin_addr)?,
+            )
         }
         // ======== FT functions ==========
         ExecuteMsg::MintTokens { amount } => {
-            nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
                 "mint_ft",
             )?;
             mint_ft(
-                deps,
+                deps.storage,
+                deps.querier,
                 amount,
                 max_denom_supply,
                 base_denom.clone(),
                 one_denom_in_base_denom,
                 denom,
-                contract_addr_str,
+                contract_addr_ref,
             )
         }
         ExecuteMsg::BurnTokens { amount } => {
-            nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
                 "burn_ft",
             )?;
             burn_ft(
-                deps,
+                deps.storage,
                 amount,
                 one_denom_in_base_denom,
                 denom,
-                contract_addr_str,
+                contract_addr_ref,
             )
         }
         ExecuteMsg::SendTokens {
             amount,
             recipient_addr,
         } => {
-            nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
@@ -194,7 +192,6 @@ pub fn execute(
             send_ft(amount, denom, recipient_addr)
         }
         ExecuteMsg::ForceTransfer { amount, from, to } => {
-            nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
@@ -212,7 +209,7 @@ pub fn execute(
             &env.block,
             sender_addr_ref,
             &deps.api.addr_validate(&spender)?,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
             expires,
         ),
         ExecuteMsg::ApproveAll { operator, expires } => approve_all_nft(
@@ -227,7 +224,7 @@ pub fn execute(
             &env.block,
             sender_addr_ref,
             &deps.api.addr_validate(&spender)?,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
         ),
         ExecuteMsg::RevokeAll { operator } => revoke_all_nft(
             deps.storage,
@@ -242,7 +239,7 @@ pub fn execute(
             &env.block,
             sender_addr_ref,
             &deps.api.addr_validate(&recipient)?,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
             base_denom,
             contract_addr_ref,
@@ -255,7 +252,7 @@ pub fn execute(
             deps.storage,
             &env.block,
             sender_addr_ref,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
             base_denom,
             contract_addr_ref,
@@ -266,7 +263,7 @@ pub fn execute(
             deps.storage,
             &env.block,
             contract_addr_ref,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
             base_denom,
             sender_addr_ref,
@@ -297,7 +294,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => to_json_binary(&query_nft_owner(
             deps.storage,
             &env.block,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
             include_expired,
         )?),
         QueryMsg::Approval {
@@ -307,7 +304,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => to_json_binary(&query_nft_approval(
             deps.storage,
             &env.block,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
             spender,
             include_expired,
         )?),
@@ -317,7 +314,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => to_json_binary(&query_nft_approvals(
             deps.storage,
             &env.block,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
             include_expired,
         )?),
         QueryMsg::Operator {
@@ -352,7 +349,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::NftInfo { token_id } => to_json_binary(&query_nft_info(
             deps,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
         )?),
         QueryMsg::AllNftInfo {
             token_id,
@@ -360,7 +357,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => to_json_binary(&query_all_nft_infos(
             deps,
             env,
-            parse_token_id_from_string_to_uint64(token_id)?,
+            parse_token_id_from_string_to_uint128(token_id)?,
             include_expired,
         )?),
         QueryMsg::Tokens {
