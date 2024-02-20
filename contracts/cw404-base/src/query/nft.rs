@@ -1,10 +1,10 @@
 use crate::{
-    state::{NFTS, NFT_OPERATORS},
+    state::{DEFAULT_LIMIT, MAX_LIMIT, NFTS, NFT_OPERATORS},
     util::nft::humanize_approvals,
 };
 use cosmwasm_std::{
-    Addr, BlockInfo, Deps, Empty, Env, Order, QuerierWrapper, StdError,
-    StdResult, Storage, Uint128,
+    Addr, BlockInfo, DenomMetadata, Deps, Empty, Env, Order, QuerierWrapper,
+    StdError, StdResult, Storage, Uint128,
 };
 use cw721::{
     AllNftInfoResponse, Approval, ApprovalResponse, ApprovalsResponse,
@@ -13,10 +13,6 @@ use cw721::{
 };
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration};
-use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
-
-const DEFAULT_LIMIT: u32 = 10;
-const MAX_LIMIT: u32 = 100;
 
 pub fn query_nft_owner(
     storage: &dyn Storage,
@@ -153,10 +149,10 @@ pub fn query_all_nfts_operators(
 
 pub fn query_nft_num_tokens(
     querier: QuerierWrapper,
-    denom: &str,
+    base_denom: &str,
     one_denom_in_base_denom: Uint128,
 ) -> StdResult<NumTokensResponse> {
-    let ft_supply = querier.query_supply(denom)?.amount;
+    let ft_supply = querier.query_supply(base_denom)?.amount;
     let nft_spply = ft_supply / one_denom_in_base_denom;
     Ok(NumTokensResponse {
         count: nft_spply.u128() as u64,
@@ -164,7 +160,7 @@ pub fn query_nft_num_tokens(
 }
 
 pub fn query_nft_contract_info(
-    metadata: Metadata,
+    metadata: DenomMetadata,
 ) -> StdResult<ContractInfoResponse> {
     Ok(ContractInfoResponse {
         name: metadata.name,

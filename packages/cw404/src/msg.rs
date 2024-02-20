@@ -1,21 +1,26 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, Coin, Empty, Uint128};
+use cosmwasm_std::{Binary, Coin, DenomMetadataResponse, Empty, Uint128};
 use cw721::{
     AllNftInfoResponse, ApprovalResponse, ApprovalsResponse,
     ContractInfoResponse, NftInfoResponse, NumTokensResponse, OperatorResponse,
     OperatorsResponse, OwnerOfResponse, TokensResponse,
 };
 use cw_utils::Expiration;
-use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
 // ========== instantiate ==========
 
 #[cw_serde]
 pub struct InstantiateMsg {
     pub admin_addr: String,
-    pub subdenom: String,
     pub max_nft_supply: Uint128,
-    pub denom_metadata: Metadata,
+    // e.g. "atom", then base denom is "uatom", 1 ATOM = 1_000_000 uatom, 1 atom = 1 atom NFT
+    pub subdenom: String,
+    pub denom_description: String,
+    pub denom_display: String,
+    pub denom_name: String,
+    pub denom_symbol: String,
+    pub denom_uri: String,
+    pub denom_uri_hash: String,
 }
 
 // ========== execute ==========
@@ -93,15 +98,6 @@ pub struct AdminResponse {
 }
 
 #[cw_serde]
-pub struct DenomResponse {
-    // subdenom is same as base denom
-    pub subdenom: String,
-    // full_denom factory/creator_address/subdenom
-    pub full_denom: String,
-    pub denom_metadata: Metadata,
-}
-
-#[cw_serde]
 pub struct SupplyResponse {
     pub current_nft_supply: Uint128,
     pub max_nft_supply: Uint128,
@@ -123,8 +119,8 @@ pub enum QueryMsg {
     #[returns(AdminResponse)]
     Admin {},
     // ========== FT functions ==========
-    #[returns(DenomResponse)]
-    Denom {},
+    #[returns(DenomMetadataResponse)]
+    DenomMetadata {},
     #[returns(SupplyResponse)]
     Supply {},
     #[returns(BalanceResponse)]

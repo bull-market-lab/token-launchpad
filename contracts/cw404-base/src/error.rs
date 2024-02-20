@@ -13,9 +13,6 @@ pub enum ContractError {
     #[error("Only admin can call this function: {function:?}")]
     OnlyAdminCanCallThisFunction { function: String },
 
-    #[error("Expect exactly one denom unit, received: {count:?}")]
-    ExpectExactlyOneDenomUnit { count: Uint128 },
-
     #[error("Max base denom (FT in smallest unit) supply reached: current supply {current_base_denom_supply:?}, max supply {max_base_denom_supply:?}, mint amount {mint_amount:?}")]
     MaxBaseDenomSupplyReached {
         current_base_denom_supply: Uint128,

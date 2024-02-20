@@ -4,11 +4,13 @@ use cw_storage_plus::{
     Deque, Index, IndexList, IndexedMap, Item, Map, MultiIndex,
 };
 use cw_utils::Expiration;
-use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
+
+pub const DEFAULT_LIMIT: u32 = 10;
+pub const MAX_LIMIT: u32 = 100;
+pub const DENOM_EXPONENT: u32 = 6;
 
 pub const ADMIN_ADDR: Item<Addr> = Item::new("ADMIN_ADDR");
 pub const SUBDENOM: Item<String> = Item::new("SUBDENOM");
-pub const METADATA: Item<Metadata> = Item::new("METADATA");
 
 /// 1 NFT = 1 denom (e.g. ATOM) = 1 * 10 ** exponent base denom (uatom)
 /// e.g. 1 ATOM = 1_000_000 uatom when exponent = 6, ATOM is both denom (FT) and NFT

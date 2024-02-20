@@ -41,11 +41,12 @@ pub fn parse_token_id_from_string_to_uint128(
 pub fn calculate_nft_to_mint_for_ft_mint(
     querier: QuerierWrapper,
     owner_addr: &Addr,
-    denom: &str,
+    base_denom: &str,
     ft_mint_amount: Uint128,
     one_denom_in_base_denom: Uint128,
 ) -> Result<Uint128, ContractError> {
-    let before_ft_balance = querier.query_balance(owner_addr, denom)?.amount;
+    let before_ft_balance =
+        querier.query_balance(owner_addr, base_denom)?.amount;
     let before_nft_balance = before_ft_balance / one_denom_in_base_denom;
     let after_ft_balance = before_ft_balance + ft_mint_amount;
     let after_nft_balance = after_ft_balance / one_denom_in_base_denom;
@@ -56,11 +57,12 @@ pub fn calculate_nft_to_mint_for_ft_mint(
 pub fn calculate_nft_to_burn_for_ft_burn(
     querier: QuerierWrapper,
     owner_addr: &Addr,
-    denom: &str,
+    base_denom: &str,
     ft_burn_amount: Uint128,
     one_denom_in_base_denom: Uint128,
 ) -> Result<Uint128, ContractError> {
-    let before_ft_balance = querier.query_balance(owner_addr, denom)?.amount;
+    let before_ft_balance =
+        querier.query_balance(owner_addr, base_denom)?.amount;
     let before_nft_balance = before_ft_balance / one_denom_in_base_denom;
     let after_ft_balance = before_ft_balance - ft_burn_amount;
     let after_nft_balance = after_ft_balance / one_denom_in_base_denom;
@@ -71,14 +73,14 @@ pub fn calculate_nft_to_burn_for_ft_burn(
 pub fn batch_mint_nft(
     storage: &mut dyn Storage,
     querier: QuerierWrapper,
-    denom: &str,
+    base_denom: &str,
     base_uri: &str,
     one_denom_in_base_denom: Uint128,
     owner_addr: &Addr,
     amount: Uint128,
 ) -> Result<(), ContractError> {
     let current_nft_supply =
-        querier.query_supply(denom)?.amount / one_denom_in_base_denom;
+        querier.query_supply(base_denom)?.amount / one_denom_in_base_denom;
     for i in 0..amount.into() {
         let token_id = if RECYCLED_NFT_IDS.is_empty(storage)? {
             // token_id starts from 1, so when current_nft_supply is 0, the next token_id is 1

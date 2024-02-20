@@ -22,11 +22,11 @@ pub fn mint_ft(
     querier: QuerierWrapper,
     amount: Uint128,
     one_denom_in_base_denom: Uint128,
-    denom: &str,
+    base_denom: &str,
     base_uri: &str,
     contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
-    let current_base_denom_supply = querier.query_supply(denom)?.amount;
+    let current_base_denom_supply = querier.query_supply(base_denom)?.amount;
     let max_nft_supply = MAX_NFT_SUPPLY.load(storage)?;
     assert_max_base_denom_supply_not_reached(
         current_base_denom_supply,
@@ -36,14 +36,14 @@ pub fn mint_ft(
     let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
         querier,
         contract_addr,
-        denom,
+        base_denom,
         amount,
         one_denom_in_base_denom,
     )?;
     batch_mint_nft(
         storage,
         querier,
-        denom,
+        base_denom,
         base_uri,
         one_denom_in_base_denom,
         contract_addr,
@@ -53,7 +53,7 @@ pub fn mint_ft(
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: amount.to_string(),
-            denom: denom.to_string(),
+            denom: base_denom.to_string(),
         }),
         mint_to_address: contract_addr.to_string(),
     };
@@ -70,13 +70,13 @@ pub fn burn_ft(
     querier: QuerierWrapper,
     amount: Uint128,
     one_denom_in_base_denom: Uint128,
-    denom: &str,
+    base_denom: &str,
     contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
     let burn_nft_amount = calculate_nft_to_burn_for_ft_burn(
         querier,
         contract_addr,
-        denom,
+        base_denom,
         amount,
         one_denom_in_base_denom,
     )?;
@@ -85,7 +85,7 @@ pub fn burn_ft(
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: amount.to_string(),
-            denom: denom.to_string(),
+            denom: base_denom.to_string(),
         }),
         burn_from_address: contract_addr.to_string(),
     };
@@ -102,7 +102,7 @@ pub fn send_ft(
     storage: &mut dyn Storage,
     querier: QuerierWrapper,
     amount: Uint128,
-    denom: &str,
+    base_denom: &str,
     one_denom_in_base_denom: Uint128,
     recipient_addr: &Addr,
     base_uri: &str,
@@ -111,7 +111,7 @@ pub fn send_ft(
     let burn_nft_amount = calculate_nft_to_burn_for_ft_burn(
         querier,
         contract_addr,
-        denom,
+        base_denom,
         amount,
         one_denom_in_base_denom,
     )?;
@@ -119,14 +119,14 @@ pub fn send_ft(
     let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
         querier,
         contract_addr,
-        denom,
+        base_denom,
         amount,
         one_denom_in_base_denom,
     )?;
     batch_mint_nft(
         storage,
         querier,
-        denom,
+        base_denom,
         base_uri,
         one_denom_in_base_denom,
         recipient_addr,
@@ -134,7 +134,7 @@ pub fn send_ft(
     )?;
     let msg = BankMsg::Send {
         to_address: recipient_addr.to_string(),
-        amount: coins(amount.u128(), denom),
+        amount: coins(amount.u128(), base_denom),
     };
     Ok(Response::new()
         .add_message(msg)
@@ -151,7 +151,7 @@ pub fn force_transfer_ft(
     storage: &mut dyn Storage,
     querier: QuerierWrapper,
     amount: Uint128,
-    denom: &str,
+    base_denom: &str,
     one_denom_in_base_denom: Uint128,
     base_uri: &str,
     contract_addr: &Addr,
@@ -161,7 +161,7 @@ pub fn force_transfer_ft(
     let burn_nft_amount = calculate_nft_to_burn_for_ft_burn(
         querier,
         from_addr,
-        denom,
+        base_denom,
         amount,
         one_denom_in_base_denom,
     )?;
@@ -169,14 +169,14 @@ pub fn force_transfer_ft(
     let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
         querier,
         from_addr,
-        denom,
+        base_denom,
         amount,
         one_denom_in_base_denom,
     )?;
     batch_mint_nft(
         storage,
         querier,
-        denom,
+        base_denom,
         base_uri,
         one_denom_in_base_denom,
         to_addr,
@@ -186,7 +186,7 @@ pub fn force_transfer_ft(
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: amount.to_string(),
-            denom: denom.to_string(),
+            denom: base_denom.to_string(),
         }),
         transfer_from_address: from_addr.to_string(),
         transfer_to_address: to_addr.to_string(),
