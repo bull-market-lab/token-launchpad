@@ -3,4 +3,5 @@ pub mod error;
 mod execute;
 mod query;
 mod state;
+mod sudo;
 mod util;

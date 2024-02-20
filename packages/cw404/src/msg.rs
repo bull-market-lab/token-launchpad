@@ -205,12 +205,10 @@ pub enum QueryMsg {
 }
 
 // ========== migrate ==========
-// TODO: implement this message
 #[cw_serde]
 pub enum MigrateMsg {}
 
 // ========== sudo ==========
-// TODO: implement this message
 #[cw_serde]
 pub enum SudoMsg {
     TrackBeforeSend {

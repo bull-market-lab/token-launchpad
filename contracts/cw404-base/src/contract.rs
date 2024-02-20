@@ -15,9 +15,10 @@ use crate::{
         query_nft_owner, query_nfts,
     },
     state::{ADMIN_ADDR, MAX_NFT_SUPPLY, METADATA, SUBDENOM},
+    sudo::ft::track_before_send,
     util::{
         assert::assert_only_admin_can_call_this_function,
-        denom::get_full_denom_from_subdenom,
+        commom::{get_commom_fields, get_full_denom_from_subdenom},
         nft::parse_token_id_from_string_to_uint128,
     },
 };
@@ -54,42 +55,38 @@ pub fn instantiate(
             count: Uint128::from(msg.denom_metadata.denom_units.len() as u32),
         });
     }
-
     set_contract_version(
         deps.storage,
         format!("crates.io:{CONTRACT_NAME}"),
         CONTRACT_VERSION,
     )?;
-
     let contract_info = env.contract.clone();
     let contract_addr = contract_info.address;
-    let contract_addr_str = contract_addr.to_string();
     let admin_addr_ref = &deps.api.addr_validate(&msg.admin_addr)?;
-
     ADMIN_ADDR.save(deps.storage, admin_addr_ref)?;
     SUBDENOM.save(deps.storage, &msg.subdenom)?;
     MAX_NFT_SUPPLY.save(deps.storage, &msg.max_nft_supply)?;
     METADATA.save(deps.storage, &msg.denom_metadata)?;
-
     let full_denom =
         get_full_denom_from_subdenom(&contract_addr, &msg.subdenom);
     let msgs: Vec<CosmosMsg> = vec![
         MsgCreateDenom {
-            sender: contract_addr_str.clone(),
+            sender: contract_addr.to_string(),
             subdenom: msg.subdenom.clone(),
         }
         .into(),
         MsgSetBeforeSendHook {
-            sender: contract_addr_str.clone(),
+            sender: contract_addr.to_string(),
             denom: full_denom.clone(),
-            cosmwasm_address: contract_addr_str.clone(),
+            cosmwasm_address: contract_addr.to_string(),
         }
         .into(),
         MsgSetDenomMetadata {
-            sender: contract_addr_str,
+            sender: contract_addr.to_string(),
             metadata: Some(Metadata {
                 description: msg.denom_metadata.description,
                 denom_units: msg.denom_metadata.denom_units,
+                // TODO: test if this should be denom or full denom e.g. factory/cosmos123/uatom or just uatom
                 base: msg.denom_metadata.base,
                 display: msg.denom_metadata.display,
                 name: msg.denom_metadata.name,
@@ -117,26 +114,14 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     let info_ref = &info;
     nonpayable(info_ref)?;
-
     let sender_addr_ref = &info.clone().sender;
-    let contract_addr = env.clone().contract.address;
-    let contract_addr_ref = &contract_addr;
-    let contract_addr_str = contract_addr.to_string();
-    let denom = get_full_denom_from_subdenom(
-        contract_addr_ref,
-        &SUBDENOM.load(deps.storage)?,
-    );
-    let denom_str = denom.as_str();
-    let admin_addr = ADMIN_ADDR.load(deps.storage)?;
-    let admin_addr_ref = &admin_addr;
-    let metadata = METADATA.load(deps.storage)?;
-    let denom_exponent = metadata.denom_units[0].exponent;
-    let one_denom_in_base_denom = Uint128::from(10u128.pow(denom_exponent));
+    let (contract_addr, admin_addr, metadata, denom, one_denom_in_base_denom) =
+        get_commom_fields(env.clone(), deps.storage)?;
     match msg {
         ExecuteMsg::ChangeAdmin { new_admin_addr } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                admin_addr_ref,
+                &admin_addr,
                 "change_admin",
             )?;
             change_admin(
@@ -148,7 +133,7 @@ pub fn execute(
         ExecuteMsg::MintTokens { amount } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                admin_addr_ref,
+                &admin_addr,
                 "mint_ft",
             )?;
             mint_ft(
@@ -156,14 +141,15 @@ pub fn execute(
                 deps.querier,
                 amount,
                 one_denom_in_base_denom,
-                denom_str,
-                contract_addr_ref,
+                denom.as_str(),
+                metadata.uri.as_str(),
+                &contract_addr,
             )
         }
         ExecuteMsg::BurnTokens { amount } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                admin_addr_ref,
+                &admin_addr,
                 "burn_ft",
             )?;
             burn_ft(
@@ -171,8 +157,8 @@ pub fn execute(
                 deps.querier,
                 amount,
                 one_denom_in_base_denom,
-                denom_str,
-                contract_addr_ref,
+                denom.as_str(),
+                &contract_addr,
             )
         }
         ExecuteMsg::SendTokens {
@@ -181,18 +167,37 @@ pub fn execute(
         } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                admin_addr_ref,
+                &admin_addr,
                 "send_ft",
             )?;
-            send_ft(amount, denom_str, recipient_addr)
+            send_ft(
+                deps.storage,
+                deps.querier,
+                amount,
+                denom.as_str(),
+                one_denom_in_base_denom,
+                &deps.api.addr_validate(&recipient_addr)?,
+                metadata.uri.as_str(),
+                &contract_addr,
+            )
         }
         ExecuteMsg::ForceTransfer { amount, from, to } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                admin_addr_ref,
+                &admin_addr,
                 "force_transfer_ft",
             )?;
-            force_transfer_ft(amount, denom_str, contract_addr_str, from, to)
+            force_transfer_ft(
+                deps.storage,
+                deps.querier,
+                amount,
+                denom.as_str(),
+                one_denom_in_base_denom,
+                metadata.uri.as_str(),
+                &contract_addr,
+                &deps.api.addr_validate(&from)?,
+                &deps.api.addr_validate(&to)?,
+            )
         }
         // ======== NFT cw721 functions ==========
         ExecuteMsg::Approve {
@@ -236,8 +241,8 @@ pub fn execute(
             &deps.api.addr_validate(&recipient)?,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            denom_str,
-            contract_addr_ref,
+            denom.as_str(),
+            &contract_addr,
         ),
         ExecuteMsg::SendNft {
             contract,
@@ -249,18 +254,18 @@ pub fn execute(
             sender_addr_ref,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            denom_str,
-            contract_addr_ref,
+            denom.as_str(),
+            &contract_addr,
             &deps.api.addr_validate(&contract)?,
             msg,
         ),
         ExecuteMsg::Burn { token_id } => burn_nft(
             deps.storage,
             &env.block,
-            contract_addr_ref,
+            &contract_addr,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            denom_str,
+            denom.as_str(),
             sender_addr_ref,
         ),
     }
@@ -268,16 +273,8 @@ pub fn execute(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    let contract_addr = env.clone().contract.address;
-    let denom = get_full_denom_from_subdenom(
-        &contract_addr,
-        &SUBDENOM.load(deps.storage)?,
-    );
-    let denom_str = denom.as_str();
-    let admin_addr = ADMIN_ADDR.load(deps.storage)?;
-    let metadata = METADATA.load(deps.storage)?;
-    let denom_exponent = metadata.denom_units[0].exponent;
-    let one_denom_in_base_denom = Uint128::from(10u128.pow(denom_exponent));
+    let (_contract_addr, admin_addr, metadata, denom, one_denom_in_base_denom) =
+        get_commom_fields(env.clone(), deps.storage)?;
     match msg {
         QueryMsg::Admin {} => to_json_binary(&AdminResponse {
             admin_addr: admin_addr.to_string(),
@@ -285,7 +282,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         // ======== FT functions ==========
         QueryMsg::Denom {} => to_json_binary(&DenomResponse {
             subdenom: SUBDENOM.load(deps.storage)?,
-            full_denom: denom_str.to_string(),
+            full_denom: denom,
             denom_metadata: metadata,
         }),
         QueryMsg::Supply {} => to_json_binary({
@@ -360,7 +357,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         )?),
         QueryMsg::NumTokens {} => to_json_binary(&query_nft_num_tokens(
             deps.querier,
-            denom_str,
+            denom.as_str(),
             one_denom_in_base_denom,
         )?),
         QueryMsg::ContractInfo {} => {
@@ -414,6 +411,23 @@ pub fn reply(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(_deps: DepsMut, _env: Env, _msg: SudoMsg) -> StdResult<Response> {
-    Ok(Response::new())
+pub fn sudo(
+    deps: DepsMut,
+    env: Env,
+    msg: SudoMsg,
+) -> Result<Response, ContractError> {
+    let (_contract_addr, _admin_addr, metadata, denom, one_denom_in_base_denom) =
+        get_commom_fields(env.clone(), deps.storage)?;
+    match msg {
+        SudoMsg::TrackBeforeSend { from, to, amount } => track_before_send(
+            deps.storage,
+            deps.querier,
+            amount.amount,
+            denom.as_str(),
+            one_denom_in_base_denom,
+            metadata.uri.as_str(),
+            &deps.api.addr_validate(&from)?,
+            &deps.api.addr_validate(&to)?,
+        ),
+    }
 }

@@ -72,6 +72,7 @@ pub fn batch_mint_nft(
     storage: &mut dyn Storage,
     querier: QuerierWrapper,
     denom: &str,
+    base_uri: &str,
     one_denom_in_base_denom: Uint128,
     owner_addr: &Addr,
     amount: Uint128,
@@ -90,7 +91,7 @@ pub fn batch_mint_nft(
             None => Ok(Nft {
                 owner: owner_addr.clone(),
                 approvals: vec![],
-                token_uri: None,
+                token_uri: Some(format!("{}/{}", base_uri, token_id)),
             }),
         })?;
     }
