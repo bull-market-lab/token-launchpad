@@ -88,23 +88,47 @@ pub enum ExecuteMsg {
 // ========== query ==========
 
 #[cw_serde]
-pub struct FullDenomResponse {
-    pub full_denom: String,
+pub struct AdminResponse {
+    pub admin_addr: String,
 }
 
 #[cw_serde]
-pub struct AdminResponse {
-    pub admin_addr: String,
+pub struct DenomResponse {
+    // subdenom is same as base denom
+    pub subdenom: String,
+    // full_denom factory/creator_address/subdenom
+    pub full_denom: String,
+    pub denom_metadata: Metadata,
+}
+
+#[cw_serde]
+pub struct SupplyResponse {
+    pub current_nft_supply: Uint128,
+    pub max_nft_supply: Uint128,
+    pub current_ft_supply: Uint128,
+    pub max_ft_supply: Uint128,
+}
+
+#[cw_serde]
+pub struct BalanceResponse {
+    /// balance in NFT which is equal to 10 ** exponent base denom
+    pub nft_balance: Uint128,
+    /// balance in base denom
+    pub ft_balance: Uint128,
 }
 
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {
-    // ========== FT functions ==========
-    #[returns(FullDenomResponse)]
-    FullDenom {},
     #[returns(AdminResponse)]
     Admin {},
+    // ========== FT functions ==========
+    #[returns(DenomResponse)]
+    Denom {},
+    #[returns(SupplyResponse)]
+    Supply {},
+    #[returns(BalanceResponse)]
+    Balance { owner: String },
     // ========== NFT functions ==========
     /// Return the owner of the given token, error if token does not exist
     #[returns(OwnerOfResponse)]

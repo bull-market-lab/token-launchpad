@@ -6,8 +6,8 @@ use cw_storage_plus::{
 use cw_utils::Expiration;
 use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
-pub const SUBDENOM: Item<String> = Item::new("SUBDENOM");
 pub const ADMIN_ADDR: Item<Addr> = Item::new("ADMIN_ADDR");
+pub const SUBDENOM: Item<String> = Item::new("SUBDENOM");
 pub const METADATA: Item<Metadata> = Item::new("METADATA");
 
 /// 1 NFT = 1 denom (e.g. ATOM) = 1 * 10 ** exponent base denom (uatom)

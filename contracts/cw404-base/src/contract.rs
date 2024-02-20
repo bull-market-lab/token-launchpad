@@ -29,8 +29,8 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw404::msg::{
-    AdminResponse, ExecuteMsg, FullDenomResponse, InstantiateMsg, MigrateMsg,
-    QueryMsg, SudoMsg,
+    AdminResponse, BalanceResponse, DenomResponse, ExecuteMsg, InstantiateMsg,
+    MigrateMsg, QueryMsg, SudoMsg, SupplyResponse,
 };
 use cw_utils::nonpayable;
 use osmosis_std::types::{
@@ -139,7 +139,7 @@ pub fn execute(
         ExecuteMsg::ChangeAdmin { new_admin_addr } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                &admin_addr_ref,
+                admin_addr_ref,
                 "change_admin",
             )?;
             change_admin(
@@ -151,7 +151,7 @@ pub fn execute(
         ExecuteMsg::MintTokens { amount } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                &admin_addr_ref,
+                admin_addr_ref,
                 "mint_ft",
             )?;
             mint_ft(
@@ -166,7 +166,7 @@ pub fn execute(
         ExecuteMsg::BurnTokens { amount } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                &admin_addr_ref,
+                admin_addr_ref,
                 "burn_ft",
             )?;
             burn_ft(
@@ -184,7 +184,7 @@ pub fn execute(
         } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                &admin_addr_ref,
+                admin_addr_ref,
                 "send_ft",
             )?;
             send_ft(amount, denom_str, recipient_addr)
@@ -192,7 +192,7 @@ pub fn execute(
         ExecuteMsg::ForceTransfer { amount, from, to } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                &admin_addr_ref,
+                admin_addr_ref,
                 "force_transfer_ft",
             )?;
             force_transfer_ft(amount, denom_str, contract_addr_str, from, to)
@@ -272,21 +272,41 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     let contract_addr = env.clone().contract.address;
-    let full_denom = get_full_denom_from_subdenom(
+    let denom = get_full_denom_from_subdenom(
         &contract_addr,
         &SUBDENOM.load(deps.storage)?,
     );
-    let full_denom_str = full_denom.as_str();
+    let denom_str = denom.as_str();
     let admin_addr = ADMIN_ADDR.load(deps.storage)?;
     let metadata = METADATA.load(deps.storage)?;
+    let denom_exponent = metadata.denom_units[0].exponent;
+    let one_denom_in_base_denom = Uint128::from(10u128.pow(denom_exponent));
     match msg {
-        // ======== FT functions ==========
-        QueryMsg::FullDenom {} => to_json_binary(&FullDenomResponse {
-            full_denom: full_denom_str.to_string(),
-        }),
         QueryMsg::Admin {} => to_json_binary(&AdminResponse {
             admin_addr: admin_addr.to_string(),
         }),
+        // ======== FT functions ==========
+        QueryMsg::Denom {} => to_json_binary(&DenomResponse {
+            subdenom: SUBDENOM.load(deps.storage)?,
+            full_denom: denom_str.to_string(),
+            denom_metadata: metadata,
+        }),
+        QueryMsg::Supply {} => to_json_binary({
+            let ft_supply = deps.querier.query_supply(denom)?.amount;
+            &SupplyResponse {
+                current_nft_supply: ft_supply / one_denom_in_base_denom,
+                max_nft_supply: MAX_NFT_SUPPLY.load(deps.storage)?,
+                current_ft_supply: ft_supply,
+                max_ft_supply: ft_supply * one_denom_in_base_denom,
+            }
+        }),
+        QueryMsg::Balance { owner } => {
+            let ft_balance = deps.querier.query_balance(owner, denom)?.amount;
+            to_json_binary(&BalanceResponse {
+                nft_balance: ft_balance / one_denom_in_base_denom,
+                ft_balance,
+            })
+        }
         // ======== NFT functions ==========
         QueryMsg::OwnerOf {
             token_id,

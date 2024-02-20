@@ -26,7 +26,7 @@ pub fn query_nft_owner(
 ) -> StdResult<OwnerOfResponse> {
     let nft = NFTS().load(storage, token_id.u128())?;
     let approvals =
-        humanize_approvals(&block, &nft, include_expired.unwrap_or(false));
+        humanize_approvals(block, &nft, include_expired.unwrap_or(false));
     Ok(OwnerOfResponse {
         owner: nft.owner.to_string(),
         approvals,

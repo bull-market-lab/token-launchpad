@@ -10,8 +10,7 @@ use crate::{
     },
 };
 use cosmwasm_std::{
-    coins, Addr, BankMsg, BankQuery, QuerierWrapper, QueryRequest, Response,
-    Storage, SupplyResponse, Uint128,
+    coins, Addr, BankMsg, QuerierWrapper, Response, Storage, Uint128,
 };
 use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as SdkCoin,

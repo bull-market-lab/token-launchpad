@@ -137,7 +137,6 @@ pub fn batch_burn_nft(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn update_approvals(
     storage: &mut dyn Storage,
     block: &BlockInfo,
@@ -153,8 +152,7 @@ pub fn update_approvals(
     assert_can_update_approvals(storage, block, &nft.owner, sender_addr)?;
 
     // update the approval list (remove any for the same spender before adding)
-    nft.approvals
-        .retain(|apr| apr.spender != spender_addr.to_string());
+    nft.approvals.retain(|apr| apr.spender != *spender_addr);
 
     // only difference between approve and revoke
     if add {

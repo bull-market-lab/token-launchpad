@@ -63,8 +63,7 @@ pub fn assert_can_send(
 
     // any non-expired token approval can send
     if nft.approvals.iter().any(|apr| {
-        apr.spender == sender_addr_ref.to_string()
-            && !apr.expires.is_expired(block)
+        apr.spender == *sender_addr_ref && !apr.expires.is_expired(block)
     }) {
         return Ok(());
     }

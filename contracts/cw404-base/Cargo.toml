@@ -23,12 +23,12 @@ cw-storage-plus = { workspace = true }
 cw-utils = { workspace = true }
 cw2 = { workspace = true }
 cw721 = { workspace = true }
-cosmos-sdk-proto = { workspace = true }
 osmosis-std = { workspace = true }
 
-cw404 = { workspace = true }
-
 thiserror = { workspace = true }
+
+# my packages
+cw404 = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
