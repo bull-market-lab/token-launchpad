@@ -32,21 +32,6 @@ pub fn assert_max_base_denom_supply_not_reached(
     Ok(())
 }
 
-pub fn assert_max_nft_supply_not_reached(
-    current_nft_supply: Uint128,
-    max_nft_supply: Uint128,
-    mint_amount: Uint128,
-) -> Result<(), ContractError> {
-    if current_nft_supply + mint_amount > max_nft_supply {
-        return Err(ContractError::MaxNftSupplyReached {
-            current_nft_supply,
-            max_nft_supply,
-            mint_amount,
-        });
-    }
-    Ok(())
-}
-
 /// returns true if the sender can transfer ownership of the token
 pub fn assert_can_send(
     storage: &dyn Storage,

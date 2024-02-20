@@ -1,7 +1,6 @@
 use crate::{
     error::ContractError,
     state::{CURRENT_NFT_SUPPLY, NFTS, RECYCLED_NFT_IDS},
-    util::assert::assert_max_nft_supply_not_reached,
 };
 use cosmwasm_std::{
     Addr, BlockInfo, Order, QuerierWrapper, StdError, StdResult, Storage,
@@ -73,15 +72,9 @@ pub fn calculate_nft_to_burn_for_ft_burn(
 pub fn batch_mint_nft(
     storage: &mut dyn Storage,
     owner_addr: &Addr,
-    max_denom_supply: Uint128,
     amount: Uint128,
 ) -> Result<(), ContractError> {
     let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage)?;
-    assert_max_nft_supply_not_reached(
-        current_nft_supply,
-        max_denom_supply,
-        amount,
-    )?;
 
     for _ in 0..amount.into() {
         let token_id = if RECYCLED_NFT_IDS.is_empty(storage)? {

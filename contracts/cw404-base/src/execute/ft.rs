@@ -41,7 +41,7 @@ pub fn mint_ft(
         amount,
         one_denom_in_base_denom,
     )?;
-    batch_mint_nft(storage, contract_addr, max_nft_supply, mint_nft_amount)?;
+    batch_mint_nft(storage, contract_addr, mint_nft_amount)?;
 
     let mint_ft_msg = MsgMint {
         sender: contract_addr.to_string(),
