@@ -1,6 +1,8 @@
-use crate::error::ContractError;
-use cosmwasm_std::{Addr, BlockInfo, Empty, Storage, Uint128, Uint64};
-use cw721_base::Cw721Contract;
+use crate::{
+    error::ContractError,
+    state::{NFTS, NFT_OPERATORS},
+};
+use cosmwasm_std::{Addr, BlockInfo, Storage, Uint128, Uint64};
 
 pub fn assert_only_admin_can_call_this_function(
     sender: &Addr,
@@ -50,29 +52,25 @@ pub fn assert_can_send(
     storage: &dyn Storage,
     block: &BlockInfo,
     sender_addr_ref: &Addr,
-    cw721_base_contract: &Cw721Contract<'_, Empty, Empty, Empty, Empty>,
-    token_id: &String,
+    token_id: Uint64,
 ) -> Result<(), ContractError> {
-    let token = cw721_base_contract.tokens.load(storage, &token_id)?;
+    let nft = NFTS().load(storage, token_id.u64())?;
 
     // owner can send
-    if token.owner == sender_addr_ref {
+    if nft.owner == sender_addr_ref {
         return Ok(());
     }
 
     // any non-expired token approval can send
-    if token
-        .approvals
-        .iter()
-        .any(|apr| apr.spender == sender_addr_ref && !apr.is_expired(block))
-    {
+    if nft.approvals.iter().any(|apr| {
+        apr.spender == sender_addr_ref.to_string()
+            && !apr.expires.is_expired(block)
+    }) {
         return Ok(());
     }
 
     // operator can send
-    let op = cw721_base_contract
-        .operators
-        .may_load(storage, (&token.owner, sender_addr_ref))?;
+    let op = NFT_OPERATORS.may_load(storage, (&nft.owner, sender_addr_ref))?;
     match op {
         Some(ex) => {
             if ex.is_expired(block) {
@@ -82,5 +80,31 @@ pub fn assert_can_send(
             }
         }
         None => Err(ContractError::NoAccessToSend {}),
+    }
+}
+
+/// returns true if the sender can execute approve or reject on the contract
+pub fn assert_can_update_approvals(
+    storage: &dyn Storage,
+    block: &BlockInfo,
+    owner_addr_ref: &Addr,
+    sender_addr_ref: &Addr,
+) -> Result<(), ContractError> {
+    // owner can approve
+    if owner_addr_ref == sender_addr_ref {
+        return Ok(());
+    }
+    // operator can approve
+    let op =
+        NFT_OPERATORS.may_load(storage, (owner_addr_ref, sender_addr_ref))?;
+    match op {
+        Some(ex) => {
+            if ex.is_expired(block) {
+                Err(ContractError::NoAccessToApproval {})
+            } else {
+                Ok(())
+            }
+        }
+        None => Err(ContractError::NoAccessToApproval {}),
     }
 }

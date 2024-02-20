@@ -1,112 +1,206 @@
-use crate::{error::ContractError, state::RECYCLED_NFT_IDS};
+use crate::{
+    error::ContractError,
+    state::{CURRENT_NFT_SUPPLY, NFTS, NFT_OPERATORS, RECYCLED_NFT_IDS},
+    util::{
+        assert::assert_can_send,
+        nft::{transfer_nft_helper, update_approvals},
+    },
+};
 use cosmwasm_std::{
-    Addr, Binary, DepsMut, Empty, Env, MessageInfo, Response, Storage, Uint128,
-    Uint64,
+    Addr, Binary, BlockInfo, Response, Storage, Uint128, Uint64,
 };
-use cw721_base::{
-    entry::execute as cw721_execute, msg::ExecuteMsg as Cw721ExecuteMsg,
-    Cw721Contract,
-};
+use cw721::Cw721ReceiveMsg;
+use cw_utils::Expiration;
 use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as SdkCoin,
     osmosis::tokenfactory::v1beta1::{MsgBurn, MsgForceTransfer},
 };
 
+pub fn approve_nft(
+    storage: &mut dyn Storage,
+    block: &BlockInfo,
+    sender_addr: &Addr,
+    spender_addr: &Addr,
+    token_id: Uint64,
+    expires: Option<Expiration>,
+) -> Result<Response, ContractError> {
+    update_approvals(
+        storage,
+        block,
+        sender_addr,
+        spender_addr,
+        token_id,
+        true,
+        expires,
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("action", "approve")
+        .add_attribute("sender", sender_addr)
+        .add_attribute("spender", spender_addr)
+        .add_attribute("token_id", token_id))
+}
+
+pub fn approve_all_nft(
+    storage: &mut dyn Storage,
+    block: &BlockInfo,
+    sender_addr: &Addr,
+    operator_addr: &Addr,
+    expires: Option<Expiration>,
+) -> Result<Response, ContractError> {
+    // reject expired data as invalid
+    let expires = expires.unwrap_or_default();
+    if expires.is_expired(block) {
+        return Err(ContractError::Expired {});
+    }
+
+    NFT_OPERATORS.save(storage, (sender_addr, operator_addr), &expires)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "approve_all")
+        .add_attribute("sender", sender_addr)
+        .add_attribute("operator", operator_addr))
+}
+
+pub fn revoke_nft(
+    storage: &mut dyn Storage,
+    block: &BlockInfo,
+    sender_addr: &Addr,
+    spender_addr: &Addr,
+    token_id: Uint64,
+) -> Result<Response, ContractError> {
+    update_approvals(
+        storage,
+        block,
+        sender_addr,
+        spender_addr,
+        token_id,
+        false,
+        None,
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("action", "revoke")
+        .add_attribute("sender", sender_addr)
+        .add_attribute("spender", spender_addr)
+        .add_attribute("token_id", token_id))
+}
+
+pub fn revoke_all_nft(
+    storage: &mut dyn Storage,
+    sender_addr: &Addr,
+    operator_addr: &Addr,
+) -> Result<Response, ContractError> {
+    NFT_OPERATORS.remove(storage, (sender_addr, operator_addr));
+
+    Ok(Response::new()
+        .add_attribute("action", "revoke_all")
+        .add_attribute("sender", sender_addr)
+        .add_attribute("operator", operator_addr))
+}
+
 pub fn transfer_nft(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    contract_addr_str: String,
-    recipient: String,
-    token_id: String,
+    storage: &mut dyn Storage,
+    block: &BlockInfo,
+    sender_addr: &Addr,
+    recipient_addr: &Addr,
+    token_id: Uint64,
     one_denom_in_base_denom: Uint128,
     base_denom: String,
-    sender_addr_ref: &Addr,
+    contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
-    let resp = cw721_execute(
-        deps,
-        env,
-        info,
-        Cw721ExecuteMsg::TransferNft {
-            recipient: recipient.clone(),
-            token_id,
-        },
-    )?;
+    transfer_nft_helper(storage, block, sender_addr, recipient_addr, token_id)?;
+
     let msg = MsgForceTransfer {
-        sender: contract_addr_str,
+        sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: one_denom_in_base_denom.to_string(),
             denom: base_denom,
         }),
-        transfer_from_address: sender_addr_ref.to_string(),
-        transfer_to_address: recipient,
+        transfer_from_address: sender_addr.to_string(),
+        transfer_to_address: recipient_addr.to_string(),
     };
-    Ok(resp.add_message(msg))
+    Ok(Response::new()
+        .add_message(msg)
+        .add_attribute("action", "transfer_nft")
+        .add_attribute("sender", sender_addr)
+        .add_attribute("recipient", recipient_addr)
+        .add_attribute("token_id", token_id))
 }
 
 pub fn send_nft(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    contract_addr_str: String,
-    contract: String,
-    token_id: String,
-    msg: Binary,
+    storage: &mut dyn Storage,
+    block: &BlockInfo,
+    sender_addr: &Addr,
+    token_id: Uint64,
     one_denom_in_base_denom: Uint128,
     base_denom: String,
-    sender_addr_ref: &Addr,
+    contract_addr: &Addr,
+    recipient_contract_addr: &Addr,
+    msg: Binary,
 ) -> Result<Response, ContractError> {
-    let resp = cw721_execute(
-        deps,
-        env,
-        info,
-        Cw721ExecuteMsg::SendNft {
-            contract: contract.clone(),
-            token_id,
-            msg,
-        },
+    // Transfer token
+    transfer_nft_helper(
+        storage,
+        block,
+        sender_addr,
+        recipient_contract_addr,
+        token_id,
     )?;
+
+    let send = Cw721ReceiveMsg {
+        sender: sender_addr.to_string(),
+        token_id: token_id.to_string(),
+        msg,
+    };
+
     let msg = MsgForceTransfer {
-        sender: contract_addr_str,
+        sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: one_denom_in_base_denom.to_string(),
             denom: base_denom,
         }),
-        transfer_from_address: sender_addr_ref.to_string(),
-        transfer_to_address: contract,
+        transfer_from_address: sender_addr.to_string(),
+        transfer_to_address: contract_addr.to_string(),
     };
-    Ok(resp.add_message(msg))
+    Ok(Response::new()
+        .add_message(msg)
+        .add_message(send.into_cosmos_msg(recipient_contract_addr.clone())?)
+        .add_attribute("action", "send_nft")
+        .add_attribute("sender", sender_addr)
+        .add_attribute("recipient", recipient_contract_addr)
+        .add_attribute("token_id", token_id))
 }
 
-pub fn burn(
+pub fn burn_nft(
     storage_mut_ref: &mut dyn Storage,
-    cw721_base_contract: &Cw721Contract<Empty, Empty, Empty, Empty>,
-    contract_addr_str: String,
-    token_id: String,
+    block: &BlockInfo,
+    contract_addr: &Addr,
+    token_id: Uint64,
     one_denom_in_base_denom: Uint128,
     base_denom: String,
-    sender_addr_ref: &Addr,
+    sender_addr: &Addr,
 ) -> Result<Response, ContractError> {
-    let token_id_in_u64: u64 = token_id.parse().unwrap();
-    RECYCLED_NFT_IDS
-        .push_back(storage_mut_ref, &Uint64::from(token_id_in_u64))?;
+    assert_can_send(storage_mut_ref, block, sender_addr, token_id)?;
 
-    cw721_base_contract
-        .tokens
-        .remove(storage_mut_ref, &token_id)?;
-    cw721_base_contract.decrement_tokens(storage_mut_ref)?;
+    RECYCLED_NFT_IDS.push_back(storage_mut_ref, &token_id)?;
+
+    NFTS().remove(storage_mut_ref, token_id.u64())?;
+    let updated_nft_supply =
+        CURRENT_NFT_SUPPLY.load(storage_mut_ref)? - Uint64::one();
+    CURRENT_NFT_SUPPLY.save(storage_mut_ref, &updated_nft_supply)?;
 
     let msg = MsgBurn {
-        sender: contract_addr_str,
+        sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: one_denom_in_base_denom.to_string(),
             denom: base_denom,
         }),
-        burn_from_address: sender_addr_ref.to_string(),
+        burn_from_address: sender_addr.to_string(),
     };
     Ok(Response::new()
         .add_message(msg)
         .add_attribute("action", "burn")
-        .add_attribute("sender", sender_addr_ref)
+        .add_attribute("sender", sender_addr)
         .add_attribute("token_id", token_id))
 }

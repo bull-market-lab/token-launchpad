@@ -1,19 +1,20 @@
 use crate::{
     error::ContractError,
     util::{
-        assert::assert_max_base_denom_supply_not_reached, nft::batch_mint_nft,
+        assert::assert_max_base_denom_supply_not_reached,
+        nft::{batch_burn_nft, batch_mint_nft},
     },
 };
 use cosmwasm_std::{
-    coins, Addr, BankMsg, BankQuery, DepsMut, QueryRequest, Response,
-    SupplyResponse, Uint128, Uint64,
+    coins, BankMsg, BankQuery, DepsMut, QueryRequest, Response, SupplyResponse,
+    Uint128, Uint64,
 };
 use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as SdkCoin,
     osmosis::tokenfactory::v1beta1::{MsgBurn, MsgForceTransfer, MsgMint},
 };
 
-pub fn mint_tokens(
+pub fn mint_ft(
     deps: DepsMut,
     amount: Uint128,
     max_denom_supply: Uint64,
@@ -21,7 +22,6 @@ pub fn mint_tokens(
     one_denom_in_base_denom: Uint128,
     denom: String,
     contract_addr_str: String,
-    sender_addr_ref: &Addr,
 ) -> Result<Response, ContractError> {
     let current_base_denom_supply: SupplyResponse =
         deps.querier.query(&QueryRequest::Bank(BankQuery::Supply {
@@ -36,10 +36,6 @@ pub fn mint_tokens(
     batch_mint_nft(
         deps,
         contract_addr_str.clone(),
-        one_denom_in_base_denom,
-        base_denom,
-        contract_addr_str.clone(),
-        sender_addr_ref,
         max_denom_supply,
         Uint64::from((amount / one_denom_in_base_denom).u128() as u64),
     )?;
@@ -55,15 +51,23 @@ pub fn mint_tokens(
     Ok(Response::new()
         .add_message(mint_ft_msg)
         .add_attribute("token_type", "ft")
-        .add_attribute("action", "mint_tokens")
+        .add_attribute("action", "mint_ft")
         .add_attribute("amount", amount))
 }
 
-pub fn burn_tokens(
+pub fn burn_ft(
+    deps: DepsMut,
     amount: Uint128,
+    one_denom_in_base_denom: Uint128,
     denom: String,
     contract_addr_str: String,
 ) -> Result<Response, ContractError> {
+    batch_burn_nft(
+        deps,
+        contract_addr_str.clone(),
+        Uint64::from((amount / one_denom_in_base_denom).u128() as u64),
+    )?;
+
     let msg = MsgBurn {
         sender: contract_addr_str.clone(),
         amount: Some(SdkCoin {
@@ -75,11 +79,11 @@ pub fn burn_tokens(
     Ok(Response::new()
         .add_message(msg)
         .add_attribute("token_type", "ft")
-        .add_attribute("action", "burn_tokens")
+        .add_attribute("action", "burn_ft")
         .add_attribute("amount", amount))
 }
 
-pub fn send_tokens(
+pub fn send_ft(
     amount: Uint128,
     denom: String,
     recipient_addr: String,
@@ -91,12 +95,12 @@ pub fn send_tokens(
     Ok(Response::new()
         .add_message(msg)
         .add_attribute("token_type", "ft")
-        .add_attribute("action", "send_tokens")
+        .add_attribute("action", "send_ft")
         .add_attribute("amount", amount)
         .add_attribute("recipient_addr", recipient_addr))
 }
 
-pub fn force_transfer(
+pub fn force_transfer_ft(
     amount: Uint128,
     denom: String,
     contract_addr_str: String,
@@ -115,7 +119,7 @@ pub fn force_transfer(
     Ok(Response::new()
         .add_message(msg)
         .add_attribute("token_type", "ft")
-        .add_attribute("action", "force_transfer")
+        .add_attribute("action", "force_transfer_ft")
         .add_attribute("amount", amount)
         .add_attribute("from", from)
         .add_attribute("to", to))

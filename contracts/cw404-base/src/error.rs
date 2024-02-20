@@ -1,5 +1,4 @@
 use cosmwasm_std::{StdError, Uint128, Uint64};
-use cw721_base::ContractError as Cw721ContractError;
 use cw_utils::PaymentError;
 use thiserror::Error;
 
@@ -10,9 +9,6 @@ pub enum ContractError {
 
     #[error("{0}")]
     Payment(#[from] PaymentError),
-
-    #[error("{0}")]
-    Cw721(#[from] Cw721ContractError),
 
     // ========================== ADMIN ==========================
     #[error("Unauthorized")]
@@ -123,9 +119,24 @@ pub enum ContractError {
     #[error("Token ID {token_id:?} already in use")]
     TokenIdAlreadyInUse { token_id: Uint64 },
 
-    #[error("No access to send")]
+    #[error("No access to send NFT")]
     NoAccessToSend {},
+
+    #[error("No access to approval NFT")]
+    NoAccessToApproval {},
 
     #[error("Cannot mint zero amount")]
     CannotMintZeroAmount {},
+
+    #[error("Cannot burn more NFT than owned, available: {available:?}, try to burn: {try_to_burn:?}")]
+    CannotBurnMoreNftThanOwned {
+        available: Uint64,
+        try_to_burn: Uint64,
+    },
+
+    #[error("Expired")]
+    Expired {},
+
+    #[error("Cannot parse token id {value:?} from string to Uint64")]
+    CannotParseTokenIdFromStringToUint64 { value: String },
 }

@@ -1,34 +1,35 @@
 use crate::{
     error::ContractError,
     execute::{
-        ft::{burn_tokens, force_transfer, mint_tokens, send_tokens},
-        nft::{burn, send_nft, transfer_nft},
+        ft::{burn_ft, force_transfer_ft, mint_ft, send_ft},
+        nft::{
+            approve_all_nft, approve_nft, burn_nft, revoke_all_nft, revoke_nft,
+            send_nft, transfer_nft,
+        },
     },
-    state::{ADMIN_ADDR, MAX_DENOM_SUPPLY, METADATA, SUBDENOM},
+    query::nft::{
+        query_all_nft_infos, query_all_nfts, query_all_nfts_operators,
+        query_nft_approval, query_nft_approvals, query_nft_contract_info,
+        query_nft_info, query_nft_num_tokens, query_nft_operator,
+        query_nft_owner, query_nfts,
+    },
+    state::{
+        ADMIN_ADDR, CURRENT_NFT_SUPPLY, MAX_NFT_SUPPLY, METADATA, SUBDENOM,
+    },
     util::{
-        assert::{assert_can_send, assert_only_admin_can_call_this_function},
+        assert::assert_only_admin_can_call_this_function,
         denom::get_full_denom_from_subdenom,
+        nft::parse_token_id_from_string_to_uint64,
     },
 };
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env,
+    entry_point, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
     MessageInfo, Reply, Response, StdResult, Uint128, Uint64,
 };
 use cw2::set_contract_version;
 use cw404::msg::{
     AdminResponse, ExecuteMsg, FullDenomResponse, InstantiateMsg, MigrateMsg,
     QueryMsg, SudoMsg,
-};
-use cw721_base::{
-    entry::{
-        execute as cw721_execute, instantiate as cw721_instantiate,
-        query as cw721_query,
-    },
-    msg::{
-        ExecuteMsg as Cw721ExecuteMsg, InstantiateMsg as Cw721InstantiateMsg,
-        QueryMsg as Cw721QueryMsg,
-    },
-    Cw721Contract,
 };
 use cw_utils::nonpayable;
 use osmosis_std::types::{
@@ -68,19 +69,9 @@ pub fn instantiate(
 
     ADMIN_ADDR.save(deps.storage, admin_addr_ref)?;
     SUBDENOM.save(deps.storage, &msg.subdenom)?;
-    MAX_DENOM_SUPPLY.save(deps.storage, &msg.max_denom_supply)?;
+    MAX_NFT_SUPPLY.save(deps.storage, &msg.max_nft_supply)?;
     METADATA.save(deps.storage, &msg.denom_metadata)?;
-
-    cw721_instantiate(
-        deps,
-        env,
-        info,
-        Cw721InstantiateMsg {
-            name: msg.denom_metadata.name.clone(),
-            symbol: msg.denom_metadata.symbol.clone(),
-            minter: admin_addr_ref.to_string(),
-        },
-    )?;
+    CURRENT_NFT_SUPPLY.save(deps.storage, &Uint64::zero())?;
 
     let full_denom =
         get_full_denom_from_subdenom(&contract_addr, &msg.subdenom);
@@ -136,7 +127,7 @@ pub fn execute(
         &SUBDENOM.load(deps.storage)?,
     );
     let admin_addr = ADMIN_ADDR.load(deps.storage)?;
-    let max_denom_supply = MAX_DENOM_SUPPLY.load(deps.storage)?;
+    let max_denom_supply = MAX_NFT_SUPPLY.load(deps.storage)?;
     let admin_addr_ref = &admin_addr;
     let metadata = METADATA.load(deps.storage)?;
     let base_denom = metadata.base;
@@ -163,9 +154,9 @@ pub fn execute(
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
-                "mint_tokens",
+                "mint_ft",
             )?;
-            mint_tokens(
+            mint_ft(
                 deps,
                 amount,
                 max_denom_supply,
@@ -173,7 +164,6 @@ pub fn execute(
                 one_denom_in_base_denom,
                 denom,
                 contract_addr_str,
-                sender_addr_ref,
             )
         }
         ExecuteMsg::BurnTokens { amount } => {
@@ -181,9 +171,15 @@ pub fn execute(
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
-                "burn_tokens",
+                "burn_ft",
             )?;
-            burn_tokens(amount, denom, contract_addr_str)
+            burn_ft(
+                deps,
+                amount,
+                one_denom_in_base_denom,
+                denom,
+                contract_addr_str,
+            )
         }
         ExecuteMsg::SendTokens {
             amount,
@@ -193,103 +189,88 @@ pub fn execute(
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
-                "send_tokens",
+                "send_ft",
             )?;
-            send_tokens(amount, denom, recipient_addr)
+            send_ft(amount, denom, recipient_addr)
         }
         ExecuteMsg::ForceTransfer { amount, from, to } => {
             nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr_ref,
-                "force_transfer",
+                "force_transfer_ft",
             )?;
-            force_transfer(amount, denom, contract_addr_str, from, to)
+            force_transfer_ft(amount, denom, contract_addr_str, from, to)
         }
         // ======== NFT cw721 functions ==========
         ExecuteMsg::Approve {
             spender,
             token_id,
             expires,
-        } => Ok(cw721_execute(
-            deps,
-            env,
-            info,
-            Cw721ExecuteMsg::Approve {
-                spender,
-                token_id,
-                expires,
-            },
-        )?),
-        ExecuteMsg::ApproveAll { operator, expires } => Ok(cw721_execute(
-            deps,
-            env,
-            info,
-            Cw721ExecuteMsg::ApproveAll { operator, expires },
-        )?),
-        ExecuteMsg::Revoke { spender, token_id } => Ok(cw721_execute(
-            deps,
-            env,
-            info,
-            Cw721ExecuteMsg::Revoke { spender, token_id },
-        )?),
-        ExecuteMsg::RevokeAll { operator } => Ok(cw721_execute(
-            deps,
-            env,
-            info,
-            Cw721ExecuteMsg::RevokeAll { operator },
-        )?),
+        } => approve_nft(
+            deps.storage,
+            &env.block,
+            sender_addr_ref,
+            &deps.api.addr_validate(&spender)?,
+            parse_token_id_from_string_to_uint64(token_id)?,
+            expires,
+        ),
+        ExecuteMsg::ApproveAll { operator, expires } => approve_all_nft(
+            deps.storage,
+            &env.block,
+            sender_addr_ref,
+            &deps.api.addr_validate(&operator)?,
+            expires,
+        ),
+        ExecuteMsg::Revoke { spender, token_id } => revoke_nft(
+            deps.storage,
+            &env.block,
+            sender_addr_ref,
+            &deps.api.addr_validate(&spender)?,
+            parse_token_id_from_string_to_uint64(token_id)?,
+        ),
+        ExecuteMsg::RevokeAll { operator } => revoke_all_nft(
+            deps.storage,
+            sender_addr_ref,
+            &deps.api.addr_validate(&operator)?,
+        ),
         ExecuteMsg::TransferNft {
             recipient,
             token_id,
         } => transfer_nft(
-            deps,
-            env,
-            info,
-            contract_addr_str,
-            recipient,
-            token_id,
+            deps.storage,
+            &env.block,
+            sender_addr_ref,
+            &deps.api.addr_validate(&recipient)?,
+            parse_token_id_from_string_to_uint64(token_id)?,
             one_denom_in_base_denom,
             base_denom,
-            sender_addr_ref,
+            contract_addr_ref,
         ),
         ExecuteMsg::SendNft {
             contract,
             token_id,
             msg,
         } => send_nft(
-            deps,
-            env,
-            info,
-            contract_addr_str,
-            contract,
-            token_id,
+            deps.storage,
+            &env.block,
+            sender_addr_ref,
+            parse_token_id_from_string_to_uint64(token_id)?,
+            one_denom_in_base_denom,
+            base_denom,
+            contract_addr_ref,
+            &deps.api.addr_validate(&contract)?,
             msg,
+        ),
+        ExecuteMsg::Burn { token_id } => burn_nft(
+            deps.storage,
+            &env.block,
+            contract_addr_ref,
+            parse_token_id_from_string_to_uint64(token_id)?,
             one_denom_in_base_denom,
             base_denom,
             sender_addr_ref,
         ),
-        ExecuteMsg::Burn { token_id } => {
-            let storage_mut_ref = deps.storage;
-            let cw721_base_contract =
-                &Cw721Contract::<Empty, Empty, Empty, Empty>::default();
-            assert_can_send(
-                storage_mut_ref,
-                &env.block,
-                sender_addr_ref,
-                &cw721_base_contract,
-                &token_id,
-            )?;
-            burn(
-                storage_mut_ref,
-                cw721_base_contract,
-                contract_addr_str,
-                token_id,
-                one_denom_in_base_denom,
-                base_denom,
-                sender_addr_ref,
-            )
-        }
     }
 }
 
@@ -298,6 +279,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     let contract_addr = env.clone().contract.address;
     let denom = &SUBDENOM.load(deps.storage)?;
     let admin_addr = ADMIN_ADDR.load(deps.storage)?;
+    let metadata = METADATA.load(deps.storage)?;
     match msg {
         // ======== FT functions ==========
         QueryMsg::FullDenom {} => {
@@ -312,104 +294,88 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::OwnerOf {
             token_id,
             include_expired,
-        } => cw721_query(
-            deps,
-            env,
-            Cw721QueryMsg::OwnerOf {
-                token_id,
-                include_expired,
-            },
-        ),
+        } => to_json_binary(&query_nft_owner(
+            deps.storage,
+            &env.block,
+            parse_token_id_from_string_to_uint64(token_id)?,
+            include_expired,
+        )?),
         QueryMsg::Approval {
             token_id,
             spender,
             include_expired,
-        } => cw721_query(
-            deps,
-            env,
-            Cw721QueryMsg::Approval {
-                token_id,
-                spender,
-                include_expired,
-            },
-        ),
+        } => to_json_binary(&query_nft_approval(
+            deps.storage,
+            &env.block,
+            parse_token_id_from_string_to_uint64(token_id)?,
+            spender,
+            include_expired,
+        )?),
         QueryMsg::Approvals {
             token_id,
             include_expired,
-        } => cw721_query(
-            deps,
-            env,
-            Cw721QueryMsg::Approvals {
-                token_id,
-                include_expired,
-            },
-        ),
+        } => to_json_binary(&query_nft_approvals(
+            deps.storage,
+            &env.block,
+            parse_token_id_from_string_to_uint64(token_id)?,
+            include_expired,
+        )?),
         QueryMsg::Operator {
             owner,
             operator,
             include_expired,
-        } => cw721_query(
-            deps,
-            env,
-            Cw721QueryMsg::Operator {
-                owner,
-                operator,
-                include_expired,
-            },
-        ),
+        } => to_json_binary(&query_nft_operator(
+            deps.storage,
+            &env.block,
+            &deps.api.addr_validate(&owner)?,
+            &deps.api.addr_validate(&operator)?,
+            include_expired,
+        )?),
         QueryMsg::AllOperators {
             owner,
             include_expired,
             start_after,
             limit,
-        } => cw721_query(
+        } => to_json_binary(&query_all_nfts_operators(
             deps,
-            env,
-            Cw721QueryMsg::AllOperators {
-                owner,
-                include_expired,
-                start_after,
-                limit,
-            },
-        ),
+            &env.block,
+            owner,
+            include_expired,
+            start_after,
+            limit,
+        )?),
         QueryMsg::NumTokens {} => {
-            cw721_query(deps, env, Cw721QueryMsg::NumTokens {})
+            to_json_binary(&query_nft_num_tokens(deps.storage)?)
         }
         QueryMsg::ContractInfo {} => {
-            cw721_query(deps, env, Cw721QueryMsg::ContractInfo {})
+            to_json_binary(&query_nft_contract_info(metadata)?)
         }
-        QueryMsg::NftInfo { token_id } => {
-            cw721_query(deps, env, Cw721QueryMsg::NftInfo { token_id })
-        }
+        QueryMsg::NftInfo { token_id } => to_json_binary(&query_nft_info(
+            deps,
+            parse_token_id_from_string_to_uint64(token_id)?,
+        )?),
         QueryMsg::AllNftInfo {
             token_id,
             include_expired,
-        } => cw721_query(
+        } => to_json_binary(&query_all_nft_infos(
             deps,
             env,
-            Cw721QueryMsg::AllNftInfo {
-                token_id,
-                include_expired,
-            },
-        ),
+            parse_token_id_from_string_to_uint64(token_id)?,
+            include_expired,
+        )?),
         QueryMsg::Tokens {
             owner,
             start_after,
             limit,
-        } => cw721_query(
+        } => to_json_binary(&query_nfts(
             deps,
-            env,
-            Cw721QueryMsg::Tokens {
-                owner,
-                start_after,
-                limit,
-            },
-        ),
-        QueryMsg::AllTokens { start_after, limit } => cw721_query(
-            deps,
-            env,
-            Cw721QueryMsg::AllTokens { start_after, limit },
-        ),
+            &deps.api.addr_validate(&owner)?,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::AllTokens { start_after, limit } => {
+            to_json_binary(&query_all_nfts(deps.storage, start_after, limit)?)
+        }
     }
 }
 

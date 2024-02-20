@@ -14,7 +14,7 @@ use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 pub struct InstantiateMsg {
     pub admin_addr: String,
     pub subdenom: String,
-    pub max_denom_supply: Uint64,
+    pub max_nft_supply: Uint64,
     pub denom_metadata: Metadata,
 }
 
