@@ -58,12 +58,12 @@ pub fn assert_can_send(
     match op {
         Some(ex) => {
             if ex.is_expired(block) {
-                Err(ContractError::NoAccessToSend {})
+                Err(ContractError::NoAccessToSendNftCauseGrantExpired {})
             } else {
                 Ok(())
             }
         }
-        None => Err(ContractError::NoAccessToSend {}),
+        None => Err(ContractError::NoAccessToSendNftCauseGrantNotFound {}),
     }
 }
 
@@ -84,11 +84,11 @@ pub fn assert_can_update_approvals(
     match op {
         Some(ex) => {
             if ex.is_expired(block) {
-                Err(ContractError::NoAccessToApproval {})
+                Err(ContractError::NoAccessToApproveNftCauseGrantExpired {})
             } else {
                 Ok(())
             }
         }
-        None => Err(ContractError::NoAccessToApproval {}),
+        None => Err(ContractError::NoAccessToApproveNftCauseGrantNotFound {}),
     }
 }

@@ -84,7 +84,7 @@ pub fn batch_mint_nft(
             RECYCLED_NFT_IDS.pop_front(storage)?.unwrap()
         };
         NFTS().update(storage, token_id.u128(), |old| match old {
-            Some(_) => Err(ContractError::TokenIdAlreadyInUse { token_id }),
+            Some(_) => Err(ContractError::NftTokenIdAlreadyInUse { token_id }),
             None => Ok(Nft {
                 owner: owner_addr.clone(),
                 approvals: vec![],
@@ -143,10 +143,8 @@ pub fn update_approvals(
     let mut nft = NFTS().load(storage, token_id.u128())?;
     // ensure we have permissions
     assert_can_update_approvals(storage, block, &nft.owner, sender_addr)?;
-
     // update the approval list (remove any for the same spender before adding)
     nft.approvals.retain(|apr| apr.spender != *spender_addr);
-
     // only difference between approve and revoke
     if add {
         // reject expired data as invalid
@@ -160,9 +158,7 @@ pub fn update_approvals(
         };
         nft.approvals.push(approval);
     }
-
     NFTS().save(storage, token_id.u128(), &nft)?;
-
     Ok(nft)
 }
 
