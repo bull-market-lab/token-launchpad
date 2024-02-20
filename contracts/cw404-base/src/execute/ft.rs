@@ -36,7 +36,6 @@ pub fn mint_ft(
     )?;
 
     let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
-        storage,
         querier,
         contract_addr,
         denom,
@@ -69,7 +68,6 @@ pub fn burn_ft(
     contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
     let burn_nft_amount = calculate_nft_to_burn_for_ft_burn(
-        storage,
         querier,
         contract_addr,
         denom,

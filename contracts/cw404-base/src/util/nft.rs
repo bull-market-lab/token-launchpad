@@ -1,6 +1,6 @@
 use crate::{
     error::ContractError,
-    state::{CURRENT_NFT_SUPPLY, NFTS, NFT_BALANCES, RECYCLED_NFT_IDS},
+    state::{CURRENT_NFT_SUPPLY, NFTS, RECYCLED_NFT_IDS},
     util::assert::assert_max_nft_supply_not_reached,
 };
 use cosmwasm_std::{
@@ -41,7 +41,6 @@ pub fn parse_token_id_from_string_to_uint128(
 }
 
 pub fn calculate_nft_to_mint_for_ft_mint(
-    storage: &dyn Storage,
     querier: QuerierWrapper,
     owner_addr: &Addr,
     denom: &str,
@@ -49,7 +48,7 @@ pub fn calculate_nft_to_mint_for_ft_mint(
     one_denom_in_base_denom: Uint128,
 ) -> Result<Uint128, ContractError> {
     let before_ft_balance = querier.query_balance(owner_addr, denom)?.amount;
-    let before_nft_balance = NFT_BALANCES.load(storage, owner_addr)?;
+    let before_nft_balance = before_ft_balance / one_denom_in_base_denom;
     let after_ft_balance = before_ft_balance + ft_mint_amount;
     let after_nft_balance = after_ft_balance / one_denom_in_base_denom;
     let mint_amount = after_nft_balance - before_nft_balance;
@@ -57,7 +56,6 @@ pub fn calculate_nft_to_mint_for_ft_mint(
 }
 
 pub fn calculate_nft_to_burn_for_ft_burn(
-    storage: &dyn Storage,
     querier: QuerierWrapper,
     owner_addr: &Addr,
     denom: &str,
@@ -65,7 +63,7 @@ pub fn calculate_nft_to_burn_for_ft_burn(
     one_denom_in_base_denom: Uint128,
 ) -> Result<Uint128, ContractError> {
     let before_ft_balance = querier.query_balance(owner_addr, denom)?.amount;
-    let before_nft_balance = NFT_BALANCES.load(storage, owner_addr)?;
+    let before_nft_balance = before_ft_balance / one_denom_in_base_denom;
     let after_ft_balance = before_ft_balance - ft_burn_amount;
     let after_nft_balance = after_ft_balance / one_denom_in_base_denom;
     let burn_amount = before_nft_balance - after_nft_balance;
@@ -86,11 +84,11 @@ pub fn batch_mint_nft(
     )?;
 
     for _ in 0..amount.into() {
-        let token_id = if RECYCLED_NFT_IDS.len(storage)? > 0 {
-            RECYCLED_NFT_IDS.pop_front(storage)?.unwrap()
-        } else {
+        let token_id = if RECYCLED_NFT_IDS.is_empty(storage)? {
             // token_id starts from 1, so when current_nft_supply is 0, the next token_id is 1
             current_nft_supply + Uint128::one()
+        } else {
+            RECYCLED_NFT_IDS.pop_front(storage)?.unwrap()
         };
         NFTS().update(storage, token_id.u128(), |old| match old {
             Some(_) => Err(ContractError::TokenIdAlreadyInUse { token_id }),
@@ -130,6 +128,7 @@ pub fn batch_burn_nft(
     }
 
     for token_id in token_ids {
+        RECYCLED_NFT_IDS.push_back(storage, &Uint128::from(token_id))?;
         NFTS().remove(storage, token_id)?;
     }
     let updated_nft_supply = current_nft_supply - amount;

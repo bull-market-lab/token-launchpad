@@ -18,11 +18,9 @@ pub const MAX_NFT_SUPPLY: Item<Uint128> = Item::new("MAX_NFT_SUPPLY");
 pub const CURRENT_NFT_SUPPLY: Item<Uint128> = Item::new("CURRENT_NFT_SUPPLY");
 
 /// Recycled NFT IDs, avaliable for minting
+/// When burned, the NFT ID is recycled and added to end of the queue
+/// When minted, the NFT ID is removed from the front of the queue or created if empty
 pub const RECYCLED_NFT_IDS: Deque<Uint128> = Deque::new("RECYCLED_NFT_IDS");
-
-/// Balances for NFT, since 1 NFT = 1 denom, so also balance for denom
-/// Key is addr, value is balance
-pub const NFT_BALANCES: Map<&Addr, Uint128> = Map::new("NFT_BALANCES");
 
 /// Stored as (granter, operator) giving operator full control over granter's account
 pub const NFT_OPERATORS: Map<(&Addr, &Addr), Expiration> =

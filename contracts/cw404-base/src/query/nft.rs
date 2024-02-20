@@ -102,23 +102,21 @@ pub fn query_nft_operator(
     operator_addr: &Addr,
     include_expired: Option<bool>,
 ) -> StdResult<OperatorResponse> {
-    let info =
-        NFT_OPERATORS.may_load(storage, (&owner_addr, &operator_addr))?;
-
-    if let Some(expires) = info {
-        if !include_expired.unwrap_or(false) && expires.is_expired(block) {
-            return Err(StdError::not_found("Approval not found"));
+    match NFT_OPERATORS.may_load(storage, (&owner_addr, &operator_addr))? {
+        Some(expires) => {
+            if !include_expired.unwrap_or(false) && expires.is_expired(block) {
+                Err(StdError::not_found("Approval not found"))
+            } else {
+                Ok(OperatorResponse {
+                    approval: cw721::Approval {
+                        spender: operator_addr.to_string(),
+                        expires,
+                    },
+                })
+            }
         }
-
-        return Ok(OperatorResponse {
-            approval: cw721::Approval {
-                spender: operator_addr.to_string(),
-                expires,
-            },
-        });
+        None => Err(StdError::not_found("Approval not found")),
     }
-
-    Err(StdError::not_found("Approval not found"))
 }
 
 pub fn query_all_nfts_operators(
@@ -134,7 +132,7 @@ pub fn query_all_nfts_operators(
     let start = start_addr.as_ref().map(Bound::exclusive);
 
     let owner_addr = deps.api.addr_validate(&owner)?;
-    let res: StdResult<Vec<_>> = NFT_OPERATORS
+    let res: Vec<Approval> = NFT_OPERATORS
         .prefix(&owner_addr)
         .range(deps.storage, start, None, Order::Ascending)
         .filter(|r| {
@@ -149,8 +147,8 @@ pub fn query_all_nfts_operators(
                 expires,
             })
         })
-        .collect();
-    Ok(OperatorsResponse { operators: res? })
+        .collect::<StdResult<Vec<_>>>()?;
+    Ok(OperatorsResponse { operators: res })
 }
 
 pub fn query_nft_num_tokens(
