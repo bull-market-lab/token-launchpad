@@ -1,10 +1,10 @@
 use crate::{
-    state::{CURRENT_NFT_SUPPLY, NFTS, NFT_OPERATORS},
+    state::{NFTS, NFT_OPERATORS},
     util::nft::humanize_approvals,
 };
 use cosmwasm_std::{
-    Addr, BlockInfo, Deps, Empty, Env, Order, StdError, StdResult, Storage,
-    Uint128,
+    Addr, BlockInfo, Deps, Empty, Env, Order, QuerierWrapper, StdError,
+    StdResult, Storage, Uint128,
 };
 use cw721::{
     AllNftInfoResponse, Approval, ApprovalResponse, ApprovalsResponse,
@@ -152,11 +152,14 @@ pub fn query_all_nfts_operators(
 }
 
 pub fn query_nft_num_tokens(
-    storage: &dyn Storage,
+    querier: QuerierWrapper,
+    denom: &str,
+    one_denom_in_base_denom: Uint128,
 ) -> StdResult<NumTokensResponse> {
-    let count = CURRENT_NFT_SUPPLY.load(storage)?.u128();
+    let ft_supply = querier.query_supply(denom)?.amount;
+    let nft_spply = ft_supply / one_denom_in_base_denom;
     Ok(NumTokensResponse {
-        count: count as u64,
+        count: nft_spply.u128() as u64,
     })
 }
 

@@ -1,6 +1,7 @@
+use super::assert::{assert_can_send, assert_can_update_approvals};
 use crate::{
     error::ContractError,
-    state::{CURRENT_NFT_SUPPLY, NFTS, RECYCLED_NFT_IDS},
+    state::{NFTS, RECYCLED_NFT_IDS},
 };
 use cosmwasm_std::{
     Addr, BlockInfo, Order, QuerierWrapper, StdError, StdResult, Storage,
@@ -9,8 +10,6 @@ use cosmwasm_std::{
 use cw404::nft::Nft;
 use cw721::Approval;
 use cw_utils::Expiration;
-
-use super::assert::{assert_can_send, assert_can_update_approvals};
 
 fn humanize_approval(approval: &Approval) -> Approval {
     Approval {
@@ -71,15 +70,18 @@ pub fn calculate_nft_to_burn_for_ft_burn(
 
 pub fn batch_mint_nft(
     storage: &mut dyn Storage,
+    querier: QuerierWrapper,
+    denom: &str,
+    one_denom_in_base_denom: Uint128,
     owner_addr: &Addr,
     amount: Uint128,
 ) -> Result<(), ContractError> {
-    let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage)?;
-
-    for _ in 0..amount.into() {
+    let current_nft_supply =
+        querier.query_supply(denom)?.amount / one_denom_in_base_denom;
+    for i in 0..amount.into() {
         let token_id = if RECYCLED_NFT_IDS.is_empty(storage)? {
             // token_id starts from 1, so when current_nft_supply is 0, the next token_id is 1
-            current_nft_supply + Uint128::one()
+            current_nft_supply + Uint128::from(1 + i)
         } else {
             RECYCLED_NFT_IDS.pop_front(storage)?.unwrap()
         };
@@ -92,10 +94,6 @@ pub fn batch_mint_nft(
             }),
         })?;
     }
-
-    let updated_nft_supply = current_nft_supply + amount;
-    CURRENT_NFT_SUPPLY.save(storage, &updated_nft_supply)?;
-
     Ok(())
 }
 
@@ -104,8 +102,6 @@ pub fn batch_burn_nft(
     owner_addr: &Addr,
     amount: Uint128,
 ) -> Result<(), ContractError> {
-    let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage)?;
-
     let token_ids: Vec<u128> = NFTS()
         .idx
         .owner
@@ -119,14 +115,10 @@ pub fn batch_burn_nft(
             try_to_burn: amount,
         });
     }
-
     for token_id in token_ids {
         RECYCLED_NFT_IDS.push_back(storage, &Uint128::from(token_id))?;
         NFTS().remove(storage, token_id)?;
     }
-    let updated_nft_supply = current_nft_supply - amount;
-    CURRENT_NFT_SUPPLY.save(storage, &updated_nft_supply)?;
-
     Ok(())
 }
 

@@ -1,6 +1,6 @@
 use crate::{
     error::ContractError,
-    state::{CURRENT_NFT_SUPPLY, NFTS, NFT_OPERATORS, RECYCLED_NFT_IDS},
+    state::{NFTS, NFT_OPERATORS, RECYCLED_NFT_IDS},
     util::{
         assert::assert_can_send,
         nft::{transfer_nft_helper, update_approvals},
@@ -31,7 +31,6 @@ pub fn approve_nft(
         true,
         expires,
     )?;
-
     Ok(Response::new()
         .add_attribute("action", "approve")
         .add_attribute("sender", sender_addr)
@@ -51,9 +50,7 @@ pub fn approve_all_nft(
     if expires.is_expired(block) {
         return Err(ContractError::Expired {});
     }
-
     NFT_OPERATORS.save(storage, (sender_addr, operator_addr), &expires)?;
-
     Ok(Response::new()
         .add_attribute("action", "approve_all")
         .add_attribute("sender", sender_addr)
@@ -76,7 +73,6 @@ pub fn revoke_nft(
         false,
         None,
     )?;
-
     Ok(Response::new()
         .add_attribute("action", "revoke")
         .add_attribute("sender", sender_addr)
@@ -90,7 +86,6 @@ pub fn revoke_all_nft(
     operator_addr: &Addr,
 ) -> Result<Response, ContractError> {
     NFT_OPERATORS.remove(storage, (sender_addr, operator_addr));
-
     Ok(Response::new()
         .add_attribute("action", "revoke_all")
         .add_attribute("sender", sender_addr)
@@ -109,7 +104,6 @@ pub fn transfer_nft(
     contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
     transfer_nft_helper(storage, block, sender_addr, recipient_addr, token_id)?;
-
     let msg = MsgForceTransfer {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
@@ -139,7 +133,6 @@ pub fn send_nft(
     recipient_contract_addr: &Addr,
     msg: Binary,
 ) -> Result<Response, ContractError> {
-    // Transfer token
     transfer_nft_helper(
         storage,
         block,
@@ -147,13 +140,11 @@ pub fn send_nft(
         recipient_contract_addr,
         token_id,
     )?;
-
     let send = Cw721ReceiveMsg {
         sender: sender_addr.to_string(),
         token_id: token_id.to_string(),
         msg,
     };
-
     let msg = MsgForceTransfer {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
@@ -182,14 +173,8 @@ pub fn burn_nft(
     sender_addr: &Addr,
 ) -> Result<Response, ContractError> {
     assert_can_send(storage_mut_ref, block, sender_addr, token_id)?;
-
     RECYCLED_NFT_IDS.push_back(storage_mut_ref, &token_id)?;
-
     NFTS().remove(storage_mut_ref, token_id.u128())?;
-    let updated_nft_supply =
-        CURRENT_NFT_SUPPLY.load(storage_mut_ref)? - Uint128::one();
-    CURRENT_NFT_SUPPLY.save(storage_mut_ref, &updated_nft_supply)?;
-
     let msg = MsgBurn {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {

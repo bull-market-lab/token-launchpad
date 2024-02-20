@@ -14,9 +14,6 @@ pub const METADATA: Item<Metadata> = Item::new("METADATA");
 /// e.g. 1 ATOM = 1_000_000 uatom when exponent = 6, ATOM is both denom (FT) and NFT
 pub const MAX_NFT_SUPPLY: Item<Uint128> = Item::new("MAX_NFT_SUPPLY");
 
-/// Current NFT supply
-pub const CURRENT_NFT_SUPPLY: Item<Uint128> = Item::new("CURRENT_NFT_SUPPLY");
-
 /// Recycled NFT IDs, avaliable for minting
 /// When burned, the NFT ID is recycled and added to end of the queue
 /// When minted, the NFT ID is removed from the front of the queue or created if empty

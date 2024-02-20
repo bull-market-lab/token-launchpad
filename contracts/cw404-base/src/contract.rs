@@ -14,9 +14,7 @@ use crate::{
         query_nft_info, query_nft_num_tokens, query_nft_operator,
         query_nft_owner, query_nfts,
     },
-    state::{
-        ADMIN_ADDR, CURRENT_NFT_SUPPLY, MAX_NFT_SUPPLY, METADATA, SUBDENOM,
-    },
+    state::{ADMIN_ADDR, MAX_NFT_SUPPLY, METADATA, SUBDENOM},
     util::{
         assert::assert_only_admin_can_call_this_function,
         denom::get_full_denom_from_subdenom,
@@ -72,7 +70,6 @@ pub fn instantiate(
     SUBDENOM.save(deps.storage, &msg.subdenom)?;
     MAX_NFT_SUPPLY.save(deps.storage, &msg.max_nft_supply)?;
     METADATA.save(deps.storage, &msg.denom_metadata)?;
-    CURRENT_NFT_SUPPLY.save(deps.storage, &Uint128::zero())?;
 
     let full_denom =
         get_full_denom_from_subdenom(&contract_addr, &msg.subdenom);
@@ -361,9 +358,11 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after,
             limit,
         )?),
-        QueryMsg::NumTokens {} => {
-            to_json_binary(&query_nft_num_tokens(deps.storage)?)
-        }
+        QueryMsg::NumTokens {} => to_json_binary(&query_nft_num_tokens(
+            deps.querier,
+            denom_str,
+            one_denom_in_base_denom,
+        )?),
         QueryMsg::ContractInfo {} => {
             to_json_binary(&query_nft_contract_info(metadata)?)
         }
