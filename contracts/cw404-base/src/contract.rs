@@ -129,11 +129,10 @@ pub fn execute(
         contract_addr_ref,
         &SUBDENOM.load(deps.storage)?,
     );
+    let denom_str = denom.as_str();
     let admin_addr = ADMIN_ADDR.load(deps.storage)?;
-    let max_denom_supply = MAX_NFT_SUPPLY.load(deps.storage)?;
     let admin_addr_ref = &admin_addr;
     let metadata = METADATA.load(deps.storage)?;
-    let base_denom = metadata.base;
     let denom_exponent = metadata.denom_units[0].exponent;
     let one_denom_in_base_denom = Uint128::from(10u128.pow(denom_exponent));
     match msg {
@@ -159,10 +158,8 @@ pub fn execute(
                 deps.storage,
                 deps.querier,
                 amount,
-                max_denom_supply,
-                base_denom.clone(),
                 one_denom_in_base_denom,
-                denom,
+                denom_str,
                 contract_addr_ref,
             )
         }
@@ -174,9 +171,10 @@ pub fn execute(
             )?;
             burn_ft(
                 deps.storage,
+                deps.querier,
                 amount,
                 one_denom_in_base_denom,
-                denom,
+                denom_str,
                 contract_addr_ref,
             )
         }
@@ -189,7 +187,7 @@ pub fn execute(
                 &admin_addr_ref,
                 "send_ft",
             )?;
-            send_ft(amount, denom, recipient_addr)
+            send_ft(amount, denom_str, recipient_addr)
         }
         ExecuteMsg::ForceTransfer { amount, from, to } => {
             assert_only_admin_can_call_this_function(
@@ -197,7 +195,7 @@ pub fn execute(
                 &admin_addr_ref,
                 "force_transfer_ft",
             )?;
-            force_transfer_ft(amount, denom, contract_addr_str, from, to)
+            force_transfer_ft(amount, denom_str, contract_addr_str, from, to)
         }
         // ======== NFT cw721 functions ==========
         ExecuteMsg::Approve {
@@ -241,7 +239,7 @@ pub fn execute(
             &deps.api.addr_validate(&recipient)?,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            base_denom,
+            denom_str,
             contract_addr_ref,
         ),
         ExecuteMsg::SendNft {
@@ -254,7 +252,7 @@ pub fn execute(
             sender_addr_ref,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            base_denom,
+            denom_str,
             contract_addr_ref,
             &deps.api.addr_validate(&contract)?,
             msg,
@@ -265,7 +263,7 @@ pub fn execute(
             contract_addr_ref,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            base_denom,
+            denom_str,
             sender_addr_ref,
         ),
     }
@@ -274,16 +272,18 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     let contract_addr = env.clone().contract.address;
-    let denom = &SUBDENOM.load(deps.storage)?;
+    let full_denom = get_full_denom_from_subdenom(
+        &contract_addr,
+        &SUBDENOM.load(deps.storage)?,
+    );
+    let full_denom_str = full_denom.as_str();
     let admin_addr = ADMIN_ADDR.load(deps.storage)?;
     let metadata = METADATA.load(deps.storage)?;
     match msg {
         // ======== FT functions ==========
-        QueryMsg::FullDenom {} => {
-            let full_denom =
-                get_full_denom_from_subdenom(&contract_addr, &denom);
-            to_json_binary(&FullDenomResponse { full_denom })
-        }
+        QueryMsg::FullDenom {} => to_json_binary(&FullDenomResponse {
+            full_denom: full_denom_str.to_string(),
+        }),
         QueryMsg::Admin {} => to_json_binary(&AdminResponse {
             admin_addr: admin_addr.to_string(),
         }),

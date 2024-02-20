@@ -44,7 +44,7 @@ pub fn calculate_nft_to_mint_for_ft_mint(
     storage: &dyn Storage,
     querier: QuerierWrapper,
     owner_addr: &Addr,
-    denom: String,
+    denom: &str,
     ft_mint_amount: Uint128,
     one_denom_in_base_denom: Uint128,
 ) -> Result<Uint128, ContractError> {
@@ -53,16 +53,23 @@ pub fn calculate_nft_to_mint_for_ft_mint(
     let after_ft_balance = before_ft_balance + ft_mint_amount;
     let after_nft_balance = after_ft_balance / one_denom_in_base_denom;
     let mint_amount = after_nft_balance - before_nft_balance;
-    // get before nft balance
-    // get before ft balance
-    // calculate after ft balance
-    // calculate after nft balance
-    // mint amount = after nft balance - before nft balance
     Ok(mint_amount)
 }
 
-pub fn calculate_nft_to_burn_for_ft_burn() -> Uint128 {
-    Uint128::zero()
+pub fn calculate_nft_to_burn_for_ft_burn(
+    storage: &dyn Storage,
+    querier: QuerierWrapper,
+    owner_addr: &Addr,
+    denom: &str,
+    ft_burn_amount: Uint128,
+    one_denom_in_base_denom: Uint128,
+) -> Result<Uint128, ContractError> {
+    let before_ft_balance = querier.query_balance(owner_addr, denom)?.amount;
+    let before_nft_balance = NFT_BALANCES.load(storage, owner_addr)?;
+    let after_ft_balance = before_ft_balance - ft_burn_amount;
+    let after_nft_balance = after_ft_balance / one_denom_in_base_denom;
+    let burn_amount = before_nft_balance - after_nft_balance;
+    Ok(burn_amount)
 }
 
 pub fn batch_mint_nft(
@@ -75,7 +82,7 @@ pub fn batch_mint_nft(
     assert_max_nft_supply_not_reached(
         current_nft_supply,
         max_denom_supply,
-        Uint128::one(),
+        amount,
     )?;
 
     for _ in 0..amount.into() {

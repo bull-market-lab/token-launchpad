@@ -10,7 +10,8 @@ pub const SUBDENOM: Item<String> = Item::new("SUBDENOM");
 pub const ADMIN_ADDR: Item<Addr> = Item::new("ADMIN_ADDR");
 pub const METADATA: Item<Metadata> = Item::new("METADATA");
 
-/// 1 NFT = 1 denom (e.g. BAD) = 1 * 10 ** exponent base denom (ubad)
+/// 1 NFT = 1 denom (e.g. ATOM) = 1 * 10 ** exponent base denom (uatom)
+/// e.g. 1 ATOM = 1_000_000 uatom when exponent = 6, ATOM is both denom (FT) and NFT
 pub const MAX_NFT_SUPPLY: Item<Uint128> = Item::new("MAX_NFT_SUPPLY");
 
 /// Current NFT supply

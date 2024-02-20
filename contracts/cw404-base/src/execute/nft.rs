@@ -104,7 +104,7 @@ pub fn transfer_nft(
     recipient_addr: &Addr,
     token_id: Uint128,
     one_denom_in_base_denom: Uint128,
-    base_denom: String,
+    denom: &str,
     contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
     transfer_nft_helper(storage, block, sender_addr, recipient_addr, token_id)?;
@@ -113,7 +113,7 @@ pub fn transfer_nft(
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: one_denom_in_base_denom.to_string(),
-            denom: base_denom,
+            denom: denom.to_string(),
         }),
         transfer_from_address: sender_addr.to_string(),
         transfer_to_address: recipient_addr.to_string(),
@@ -132,7 +132,7 @@ pub fn send_nft(
     sender_addr: &Addr,
     token_id: Uint128,
     one_denom_in_base_denom: Uint128,
-    base_denom: String,
+    denom: &str,
     contract_addr: &Addr,
     recipient_contract_addr: &Addr,
     msg: Binary,
@@ -156,7 +156,7 @@ pub fn send_nft(
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: one_denom_in_base_denom.to_string(),
-            denom: base_denom,
+            denom: denom.to_string(),
         }),
         transfer_from_address: sender_addr.to_string(),
         transfer_to_address: contract_addr.to_string(),
@@ -176,7 +176,7 @@ pub fn burn_nft(
     contract_addr: &Addr,
     token_id: Uint128,
     one_denom_in_base_denom: Uint128,
-    base_denom: String,
+    denom: &str,
     sender_addr: &Addr,
 ) -> Result<Response, ContractError> {
     assert_can_send(storage_mut_ref, block, sender_addr, token_id)?;
@@ -192,7 +192,7 @@ pub fn burn_nft(
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: one_denom_in_base_denom.to_string(),
-            denom: base_denom,
+            denom: denom.to_string(),
         }),
         burn_from_address: sender_addr.to_string(),
     };

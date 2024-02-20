@@ -1,8 +1,12 @@
 use crate::{
     error::ContractError,
+    state::MAX_NFT_SUPPLY,
     util::{
         assert::assert_max_base_denom_supply_not_reached,
-        nft::{batch_burn_nft, batch_mint_nft},
+        nft::{
+            batch_burn_nft, batch_mint_nft, calculate_nft_to_burn_for_ft_burn,
+            calculate_nft_to_mint_for_ft_mint,
+        },
     },
 };
 use cosmwasm_std::{
@@ -18,34 +22,34 @@ pub fn mint_ft(
     storage: &mut dyn Storage,
     querier: QuerierWrapper,
     amount: Uint128,
-    max_denom_supply: Uint128,
-    base_denom: String,
     one_denom_in_base_denom: Uint128,
-    denom: String,
+    denom: &str,
     contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
-    let current_base_denom_supply: SupplyResponse =
-        querier.query(&QueryRequest::Bank(BankQuery::Supply {
-            denom: base_denom.clone(),
-        }))?;
+    let current_base_denom_supply = querier.query_supply(denom)?.amount;
+
+    let max_nft_supply = MAX_NFT_SUPPLY.load(storage)?;
     assert_max_base_denom_supply_not_reached(
-        current_base_denom_supply.amount.amount,
-        Uint128::from(max_denom_supply) * one_denom_in_base_denom,
+        current_base_denom_supply,
+        max_nft_supply * one_denom_in_base_denom,
         amount,
     )?;
 
-    batch_mint_nft(
+    let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
         storage,
+        querier,
         contract_addr,
-        max_denom_supply,
-        amount / one_denom_in_base_denom,
+        denom,
+        amount,
+        one_denom_in_base_denom,
     )?;
+    batch_mint_nft(storage, contract_addr, max_nft_supply, mint_nft_amount)?;
 
     let mint_ft_msg = MsgMint {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: amount.to_string(),
-            denom: denom.clone(),
+            denom: denom.to_string(),
         }),
         mint_to_address: contract_addr.to_string(),
     };
@@ -58,18 +62,27 @@ pub fn mint_ft(
 
 pub fn burn_ft(
     storage: &mut dyn Storage,
+    querier: QuerierWrapper,
     amount: Uint128,
     one_denom_in_base_denom: Uint128,
-    denom: String,
+    denom: &str,
     contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
-    batch_burn_nft(storage, contract_addr, amount / one_denom_in_base_denom)?;
+    let burn_nft_amount = calculate_nft_to_burn_for_ft_burn(
+        storage,
+        querier,
+        contract_addr,
+        denom,
+        amount,
+        one_denom_in_base_denom,
+    )?;
+    batch_burn_nft(storage, contract_addr, burn_nft_amount)?;
 
     let msg = MsgBurn {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
             amount: amount.to_string(),
-            denom: denom.clone(),
+            denom: denom.to_string(),
         }),
         burn_from_address: contract_addr.to_string(),
     };
@@ -82,7 +95,7 @@ pub fn burn_ft(
 
 pub fn send_ft(
     amount: Uint128,
-    denom: String,
+    denom: &str,
     recipient_addr: String,
 ) -> Result<Response, ContractError> {
     let msg = BankMsg::Send {
@@ -99,7 +112,7 @@ pub fn send_ft(
 
 pub fn force_transfer_ft(
     amount: Uint128,
-    denom: String,
+    denom: &str,
     contract_addr_str: String,
     from: String,
     to: String,
@@ -108,7 +121,7 @@ pub fn force_transfer_ft(
         sender: contract_addr_str,
         amount: Some(SdkCoin {
             amount: amount.to_string(),
-            denom: denom.clone(),
+            denom: denom.to_string(),
         }),
         transfer_from_address: from.clone(),
         transfer_to_address: to.clone(),
