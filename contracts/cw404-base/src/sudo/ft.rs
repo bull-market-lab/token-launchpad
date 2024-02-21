@@ -34,6 +34,51 @@ pub fn track_before_send(
     from_addr: &Addr,
     to_addr: &Addr,
 ) -> Result<Response, ContractError> {
+    // let (base_denom, base_amount) = convert_to_base_denom_and_base_amount(
+    //     denom,
+    //     amount,
+    //     metadata,
+    //     one_denom_in_base_denom,
+    // );
+    // let burn_nft_amount = calculate_nft_to_burn_for_ft_burn(
+    //     querier,
+    //     from_addr,
+    //     base_denom.as_str(),
+    //     base_amount,
+    //     one_denom_in_base_denom,
+    // )?;
+    // batch_burn_nft(storage, from_addr, burn_nft_amount)?;
+    // let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
+    //     querier,
+    //     to_addr,
+    //     base_denom.as_str(),
+    //     base_amount,
+    //     one_denom_in_base_denom,
+    // )?;
+    // batch_mint_nft(storage, &metadata.uri, to_addr, mint_nft_amount)?;
+    Ok(
+        Response::new()
+            .add_attribute("token_type", "ft")
+            .add_attribute("action", "track_before_send")
+            .add_attribute("from", from_addr)
+            .add_attribute("to", to_addr)
+            // .add_attribute("amount_in_base_denom", base_amount)
+            // .add_attribute("base_denom", base_denom), 
+            // .add_attribute("burn_nft_amount", burn_nft_amount)
+                                                      // .add_attribute("mint_nft_amount", mint_nft_amount)
+    )
+}
+
+pub fn block_before_send(
+    storage: &mut dyn Storage,
+    querier: QuerierWrapper,
+    amount: Uint128,
+    denom: &str,
+    one_denom_in_base_denom: Uint128,
+    metadata: &Metadata,
+    from_addr: &Addr,
+    to_addr: &Addr,
+) -> Result<Response, ContractError> {
     let (base_denom, base_amount) = convert_to_base_denom_and_base_amount(
         denom,
         amount,
@@ -50,37 +95,12 @@ pub fn track_before_send(
     batch_burn_nft(storage, from_addr, burn_nft_amount)?;
     let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
         querier,
-        from_addr,
+        to_addr,
         base_denom.as_str(),
         base_amount,
         one_denom_in_base_denom,
     )?;
     batch_mint_nft(storage, &metadata.uri, to_addr, mint_nft_amount)?;
-    Ok(Response::new()
-        .add_attribute("token_type", "ft")
-        .add_attribute("action", "track_before_send")
-        .add_attribute("from", from_addr)
-        .add_attribute("to", to_addr)
-        .add_attribute("amount_in_base_denom", base_amount)
-        .add_attribute("base_denom", base_denom)
-        .add_attribute("burn_nft_amount", burn_nft_amount)
-        .add_attribute("mint_nft_amount", mint_nft_amount))
-}
-
-pub fn block_before_send(
-    amount: Uint128,
-    denom: &str,
-    one_denom_in_base_denom: Uint128,
-    metadata: &Metadata,
-    from_addr: &Addr,
-    to_addr: &Addr,
-) -> Result<Response, ContractError> {
-    let (base_denom, base_amount) = convert_to_base_denom_and_base_amount(
-        denom,
-        amount,
-        metadata,
-        one_denom_in_base_denom,
-    );
     Ok(Response::new()
         .add_attribute("token_type", "ft")
         .add_attribute("action", "block_before_send")

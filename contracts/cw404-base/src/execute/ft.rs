@@ -131,7 +131,7 @@ pub fn force_transfer_ft(
     batch_burn_nft(storage, from_addr, burn_nft_amount)?;
     let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
         querier,
-        from_addr,
+        to_addr,
         base_denom,
         amount,
         one_denom_in_base_denom,

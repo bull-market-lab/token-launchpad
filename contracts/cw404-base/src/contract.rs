@@ -20,7 +20,7 @@ use crate::{
     },
     state::{
         ADMIN_ADDR, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, DENOM_METADATA,
-        MAX_NFT_SUPPLY,
+        MAX_NFT_SUPPLY, RECYCLED_NFT_IDS,
     },
     sudo::ft::{block_before_send, track_before_send},
     util::{
@@ -33,7 +33,10 @@ use cosmwasm_std::{
     MessageInfo, Reply, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw404::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
+use cw404::msg::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RecycledTokenIdsResponse,
+    SudoMsg,
+};
 use cw_utils::nonpayable;
 use osmosis_std::types::{
     cosmos::bank::v1beta1::{DenomUnit, Metadata},
@@ -304,6 +307,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     let base_denom = metadata.base.as_str();
     match msg {
         QueryMsg::Admin {} => to_json_binary(&query_admin(&admin_addr)?),
+        QueryMsg::RecycledTokenIds {} => {
+            let recycled_token_ids: Vec<Uint128> = RECYCLED_NFT_IDS
+                .iter(deps.storage)?
+                .collect::<StdResult<Vec<_>>>()?;
+            to_json_binary(&RecycledTokenIdsResponse { recycled_token_ids })
+        }
         // ======== FT functions ==========
         QueryMsg::DenomMetadata {} => {
             to_json_binary(&query_denom_metadata(deps.storage)?)
@@ -449,6 +458,8 @@ pub fn sudo(
             &deps.api.addr_validate(&to)?,
         ),
         SudoMsg::BlockBeforeSend { from, to, amount } => block_before_send(
+            deps.storage,
+            deps.querier,
             amount.amount,
             amount.denom.as_str(),
             one_denom_in_base_denom,

@@ -77,7 +77,7 @@ pub fn batch_mint_nft(
     amount: Uint128,
 ) -> Result<(), ContractError> {
     let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage)?;
-    for i in 0..amount.into() {
+    for i in 0..amount.u128() {
         let token_id = if RECYCLED_NFT_IDS.is_empty(storage)? {
             // token_id starts from 1, so when current_nft_supply is 0, the next token_id is 1
             current_nft_supply + Uint128::from(1 + i)
@@ -121,7 +121,7 @@ pub fn batch_burn_nft(
         RECYCLED_NFT_IDS.push_back(storage, &Uint128::from(token_id))?;
         NFTS().remove(storage, token_id)?;
     }
-    let updated_nft_supply = current_nft_supply - amount;
+    let updated_nft_supply: Uint128 = current_nft_supply - amount;
     CURRENT_NFT_SUPPLY.save(storage, &updated_nft_supply)?;
     Ok(())
 }

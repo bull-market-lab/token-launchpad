@@ -124,11 +124,18 @@ pub struct BalanceResponse {
     pub ft_balance: Uint128,
 }
 
+#[cw_serde]
+pub struct RecycledTokenIdsResponse {
+    pub recycled_token_ids: Vec<Uint128>,
+}
+
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {
     #[returns(AdminResponse)]
     Admin {},
+    #[returns(RecycledTokenIdsResponse)]
+    RecycledTokenIds {},
     // ========== FT functions ==========
     #[returns(DenomMetadataResponse)]
     DenomMetadata {},
