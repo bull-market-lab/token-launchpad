@@ -1,7 +1,7 @@
 use super::assert::{assert_can_send, assert_can_update_approvals};
 use crate::{
     error::ContractError,
-    state::{NFTS, RECYCLED_NFT_IDS},
+    state::{CURRENT_NFT_SUPPLY, NFTS, RECYCLED_NFT_IDS},
 };
 use cosmwasm_std::{
     Addr, BlockInfo, Order, QuerierWrapper, StdError, StdResult, Storage,
@@ -72,15 +72,11 @@ pub fn calculate_nft_to_burn_for_ft_burn(
 
 pub fn batch_mint_nft(
     storage: &mut dyn Storage,
-    querier: QuerierWrapper,
-    base_denom: &str,
     base_uri: &str,
-    one_denom_in_base_denom: Uint128,
     owner_addr: &Addr,
     amount: Uint128,
 ) -> Result<(), ContractError> {
-    let current_nft_supply =
-        querier.query_supply(base_denom)?.amount / one_denom_in_base_denom;
+    let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage)?;
     for i in 0..amount.into() {
         let token_id = if RECYCLED_NFT_IDS.is_empty(storage)? {
             // token_id starts from 1, so when current_nft_supply is 0, the next token_id is 1
@@ -97,6 +93,8 @@ pub fn batch_mint_nft(
             }),
         })?;
     }
+    let updated_nft_supply = current_nft_supply + amount;
+    CURRENT_NFT_SUPPLY.save(storage, &updated_nft_supply)?;
     Ok(())
 }
 
@@ -105,6 +103,7 @@ pub fn batch_burn_nft(
     owner_addr: &Addr,
     amount: Uint128,
 ) -> Result<(), ContractError> {
+    let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage)?;
     let token_ids: Vec<u128> = NFTS()
         .idx
         .owner
@@ -122,6 +121,8 @@ pub fn batch_burn_nft(
         RECYCLED_NFT_IDS.push_back(storage, &Uint128::from(token_id))?;
         NFTS().remove(storage, token_id)?;
     }
+    let updated_nft_supply = current_nft_supply - amount;
+    CURRENT_NFT_SUPPLY.save(storage, &updated_nft_supply)?;
     Ok(())
 }
 

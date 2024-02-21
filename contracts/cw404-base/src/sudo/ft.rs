@@ -33,15 +33,7 @@ pub fn track_before_send(
         amount,
         one_denom_in_base_denom,
     )?;
-    batch_mint_nft(
-        storage,
-        querier,
-        denom,
-        base_uri,
-        one_denom_in_base_denom,
-        to_addr,
-        mint_nft_amount,
-    )?;
+    batch_mint_nft(storage, base_uri, to_addr, mint_nft_amount)?;
     Ok(Response::new()
         .add_attribute("token_type", "ft")
         .add_attribute("action", "track_before_send")

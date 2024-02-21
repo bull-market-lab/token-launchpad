@@ -1,6 +1,6 @@
 use crate::{
     error::ContractError,
-    state::{NFTS, NFT_OPERATORS, RECYCLED_NFT_IDS},
+    state::{CURRENT_NFT_SUPPLY, NFTS, NFT_OPERATORS, RECYCLED_NFT_IDS},
     util::{
         assert::assert_can_send,
         nft::{transfer_nft_helper, update_approvals},
@@ -172,6 +172,7 @@ pub fn burn_nft(
     base_denom: &str,
     sender_addr: &Addr,
 ) -> Result<Response, ContractError> {
+    let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage_mut_ref)?;
     assert_can_send(storage_mut_ref, block, sender_addr, token_id)?;
     RECYCLED_NFT_IDS.push_back(storage_mut_ref, &token_id)?;
     NFTS().remove(storage_mut_ref, token_id.u128())?;
@@ -183,6 +184,8 @@ pub fn burn_nft(
         }),
         burn_from_address: sender_addr.to_string(),
     };
+    let updated_nft_supply = current_nft_supply - Uint128::new(1);
+    CURRENT_NFT_SUPPLY.save(storage_mut_ref, &updated_nft_supply)?;
     Ok(Response::new()
         .add_message(msg)
         .add_attribute("action", "burn")

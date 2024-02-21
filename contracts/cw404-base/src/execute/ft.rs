@@ -40,15 +40,7 @@ pub fn mint_ft(
         amount,
         one_denom_in_base_denom,
     )?;
-    batch_mint_nft(
-        storage,
-        querier,
-        base_denom,
-        base_uri,
-        one_denom_in_base_denom,
-        contract_addr,
-        mint_nft_amount,
-    )?;
+    batch_mint_nft(storage, base_uri, contract_addr, mint_nft_amount)?;
     let mint_ft_msg = MsgMint {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
@@ -123,15 +115,7 @@ pub fn send_ft(
         amount,
         one_denom_in_base_denom,
     )?;
-    batch_mint_nft(
-        storage,
-        querier,
-        base_denom,
-        base_uri,
-        one_denom_in_base_denom,
-        recipient_addr,
-        mint_nft_amount,
-    )?;
+    batch_mint_nft(storage, base_uri, recipient_addr, mint_nft_amount)?;
     let msg = BankMsg::Send {
         to_address: recipient_addr.to_string(),
         amount: coins(amount.u128(), base_denom),
@@ -173,15 +157,7 @@ pub fn force_transfer_ft(
         amount,
         one_denom_in_base_denom,
     )?;
-    batch_mint_nft(
-        storage,
-        querier,
-        base_denom,
-        base_uri,
-        one_denom_in_base_denom,
-        to_addr,
-        mint_nft_amount,
-    )?;
+    batch_mint_nft(storage, base_uri, to_addr, mint_nft_amount)?;
     let msg = MsgForceTransfer {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
