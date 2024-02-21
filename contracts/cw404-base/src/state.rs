@@ -15,6 +15,8 @@ pub const SUBDENOM: Item<String> = Item::new("SUBDENOM");
 /// 1 NFT = 1 denom (e.g. ATOM) = 1 * 10 ** exponent base denom (uatom)
 /// e.g. 1 ATOM = 1_000_000 uatom when exponent = 6, ATOM is both denom (FT) and NFT
 pub const MAX_NFT_SUPPLY: Item<Uint128> = Item::new("MAX_NFT_SUPPLY");
+/// Current NFT supply
+pub const CURRENT_NFT_SUPPLY: Item<Uint128> = Item::new("CURRENT_NFT_SUPPLY");
 
 /// Recycled NFT IDs, avaliable for minting
 /// When burned, the NFT ID is recycled and added to end of the queue

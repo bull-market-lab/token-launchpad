@@ -1,6 +1,5 @@
-use cosmwasm_std::{Addr, Response, Storage};
-
 use crate::{error::ContractError, state::ADMIN_ADDR};
+use cosmwasm_std::{Addr, Response, Storage};
 
 pub fn change_admin(
     storage: &mut dyn Storage,

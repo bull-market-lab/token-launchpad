@@ -8,13 +8,20 @@ use crate::{
             send_nft, transfer_nft,
         },
     },
-    query::nft::{
-        query_all_nft_infos, query_all_nfts, query_all_nfts_operators,
-        query_nft_approval, query_nft_approvals, query_nft_contract_info,
-        query_nft_info, query_nft_num_tokens, query_nft_operator,
-        query_nft_owner, query_nfts,
+    query::{
+        config::query_admin,
+        ft::{query_balance, query_denom_metadata, query_supply},
+        nft::{
+            query_all_nft_infos, query_all_nfts, query_all_nfts_operators,
+            query_nft_approval, query_nft_approvals, query_nft_contract_info,
+            query_nft_info, query_nft_num_tokens, query_nft_operator,
+            query_nft_owner, query_nfts,
+        },
     },
-    state::{ADMIN_ADDR, DENOM_EXPONENT, MAX_NFT_SUPPLY, SUBDENOM},
+    state::{
+        ADMIN_ADDR, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, MAX_NFT_SUPPLY,
+        SUBDENOM,
+    },
     sudo::ft::track_before_send,
     util::{
         assert::assert_only_admin_can_call_this_function,
@@ -23,15 +30,11 @@ use crate::{
     },
 };
 use cosmwasm_std::{
-    entry_point, to_json_binary, BankQuery, Binary, CosmosMsg,
-    DenomMetadataResponse, Deps, DepsMut, Env, MessageInfo, QueryRequest,
-    Reply, Response, StdResult,
+    entry_point, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
+    MessageInfo, Reply, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw404::msg::{
-    AdminResponse, BalanceResponse, ExecuteMsg, InstantiateMsg, MigrateMsg,
-    QueryMsg, SudoMsg, SupplyResponse,
-};
+use cw404::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
 use cw_utils::nonpayable;
 use osmosis_std::types::{
     cosmos::bank::v1beta1::{DenomUnit, Metadata},
@@ -66,6 +69,7 @@ pub fn instantiate(
     ADMIN_ADDR.save(deps.storage, admin_addr_ref)?;
     SUBDENOM.save(deps.storage, &msg.subdenom)?;
     MAX_NFT_SUPPLY.save(deps.storage, &msg.max_nft_supply)?;
+    CURRENT_NFT_SUPPLY.save(deps.storage, &Uint128::zero())?;
 
     let metadata = Metadata {
         description: msg.denom_description,
@@ -145,7 +149,7 @@ pub fn execute(
                 &deps.api.addr_validate(&new_admin_addr)?,
             )
         }
-        // ======== FT functions ==========
+        // ======== FT (cosmos sdk native coin) functions ==========
         ExecuteMsg::MintTokens { amount } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
@@ -215,7 +219,7 @@ pub fn execute(
                 &deps.api.addr_validate(&to)?,
             )
         }
-        // ======== NFT cw721 functions ==========
+        // ======== NFT (cw721) functions ==========
         ExecuteMsg::Approve {
             spender,
             token_id,
@@ -297,34 +301,26 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         metadata,
     ) = get_commom_fields(deps.querier, deps.storage, env.clone())?;
     match msg {
-        QueryMsg::Admin {} => to_json_binary(&AdminResponse {
-            admin_addr: admin_addr.to_string(),
-        }),
+        QueryMsg::Admin {} => to_json_binary(&query_admin(&admin_addr)?),
         // ======== FT functions ==========
-        QueryMsg::DenomMetadata {} => {
-            let metadata_resp: DenomMetadataResponse =
-                deps.querier.query(&QueryRequest::Bank(
-                    BankQuery::DenomMetadata { denom: base_denom },
-                ))?;
-            to_json_binary(&metadata_resp)
-        }
+        QueryMsg::DenomMetadata {} => to_json_binary(&query_denom_metadata(
+            deps.querier,
+            base_denom.as_str(),
+        )?),
         QueryMsg::Supply {} => to_json_binary({
-            let ft_supply = deps.querier.query_supply(base_denom)?.amount;
-            &SupplyResponse {
-                current_nft_supply: ft_supply / one_denom_in_base_denom,
-                max_nft_supply: MAX_NFT_SUPPLY.load(deps.storage)?,
-                current_ft_supply: ft_supply,
-                max_ft_supply: ft_supply * one_denom_in_base_denom,
-            }
+            &query_supply(
+                deps.querier,
+                deps.storage,
+                base_denom.as_str(),
+                one_denom_in_base_denom,
+            )?
         }),
-        QueryMsg::Balance { owner } => {
-            let ft_balance =
-                deps.querier.query_balance(owner, base_denom)?.amount;
-            to_json_binary(&BalanceResponse {
-                nft_balance: ft_balance / one_denom_in_base_denom,
-                ft_balance,
-            })
-        }
+        QueryMsg::Balance { owner } => to_json_binary(&query_balance(
+            deps.querier,
+            &deps.api.addr_validate(&owner)?,
+            base_denom.as_str(),
+            one_denom_in_base_denom,
+        )?),
         // ======== NFT functions ==========
         QueryMsg::OwnerOf {
             token_id,
@@ -379,11 +375,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after,
             limit,
         )?),
-        QueryMsg::NumTokens {} => to_json_binary(&query_nft_num_tokens(
-            deps.querier,
-            base_denom.as_str(),
-            one_denom_in_base_denom,
-        )?),
+        QueryMsg::NumTokens {} => {
+            to_json_binary(&query_nft_num_tokens(deps.storage)?)
+        }
         QueryMsg::ContractInfo {} => {
             to_json_binary(&query_nft_contract_info(metadata)?)
         }
