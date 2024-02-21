@@ -19,14 +19,13 @@ use crate::{
         },
     },
     state::{
-        ADMIN_ADDR, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, MAX_NFT_SUPPLY,
-        SUBDENOM,
+        ADMIN_ADDR, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, DENOM_METADATA,
+        MAX_NFT_SUPPLY,
     },
     sudo::ft::track_before_send,
     util::{
         assert::assert_only_admin_can_call_this_function,
-        commom::{get_commom_fields, get_denom_from_subdenom},
-        nft::parse_token_id_from_string_to_uint128,
+        commom::get_commom_fields, nft::parse_token_id_from_string_to_uint128,
     },
 };
 use cosmwasm_std::{
@@ -62,12 +61,17 @@ pub fn instantiate(
     let contract_info = env.contract.clone();
     let contract_addr = contract_info.address;
     let admin_addr_ref = &deps.api.addr_validate(&msg.admin_addr)?;
-    let base_denom =
-        get_denom_from_subdenom(&contract_addr, &msg.subdenom, true);
-    let denom = get_denom_from_subdenom(&contract_addr, &msg.subdenom, false);
+
+    // e.g. atom
+    let subdenom = msg.subdenom;
+    // e.g. factory/contract_addr/atom
+    let denom = format!("factory/{}/{}", contract_addr, subdenom);
+    // e.g. uatom
+    let base_subdenom = format!("u{}", subdenom);
+    // e.g. factory/contract_addr/uatom
+    let base_denom = format!("factory/{}/{}", contract_addr, base_subdenom);
 
     ADMIN_ADDR.save(deps.storage, admin_addr_ref)?;
-    SUBDENOM.save(deps.storage, &msg.subdenom)?;
     MAX_NFT_SUPPLY.save(deps.storage, &msg.max_nft_supply)?;
     CURRENT_NFT_SUPPLY.save(deps.storage, &Uint128::zero())?;
 
@@ -75,34 +79,38 @@ pub fn instantiate(
         description: msg.denom_description,
         denom_units: vec![
             DenomUnit {
-                denom: denom.clone(),
-                exponent: DENOM_EXPONENT,
-                aliases: vec![],
-            },
-            DenomUnit {
+                // e.g. factory/contract_addr/uatom
                 denom: base_denom.clone(),
                 exponent: 0,
-                aliases: vec![],
+                // e.g. uatom
+                aliases: vec![base_subdenom.clone()],
+            },
+            DenomUnit {
+                // e.g. factory/contract_addr/atom
+                denom: denom.clone(),
+                exponent: DENOM_EXPONENT,
+                // e.g. atom
+                aliases: vec![subdenom],
             },
         ],
+        // e.g. factory/contract_addr/uatom
         base: base_denom.clone(),
-        display: msg.denom_display,
+        // e.g. factory/contract_addr/atom
+        display: denom.clone(),
+        // e.g. Cosmos Hub
         name: msg.denom_name,
+        // e.g. ATOM
         symbol: msg.denom_symbol,
         uri: msg.denom_uri,
         uri_hash: msg.denom_uri_hash,
     };
+    DENOM_METADATA.save(deps.storage, &metadata)?;
 
     let msgs: Vec<CosmosMsg> = vec![
         MsgCreateDenom {
             sender: contract_addr.to_string(),
-            subdenom: msg.subdenom.clone(),
-        }
-        .into(),
-        MsgSetBeforeSendHook {
-            sender: contract_addr.to_string(),
-            denom: denom.clone(),
-            cosmwasm_address: contract_addr.to_string(),
+            // e.g. uatom
+            subdenom: base_subdenom,
         }
         .into(),
         MsgSetDenomMetadata {
@@ -110,14 +118,21 @@ pub fn instantiate(
             metadata: Some(metadata),
         }
         .into(),
+        MsgSetBeforeSendHook {
+            sender: contract_addr.to_string(),
+            // e.g. factory/contract_addr/uatom
+            denom: base_denom.clone(),
+            cosmwasm_address: contract_addr.to_string(),
+        }
+        .into(),
     ];
     Ok(Response::new()
         .add_messages(msgs)
         .add_attribute("action", "instantiate")
-        .add_attribute("subdenom", msg.subdenom)
         .add_attribute("admin_addr", msg.admin_addr)
         .add_attribute("denom", denom)
-        .add_attribute("base_denom", base_denom))
+        .add_attribute("base_denom", base_denom)
+        .add_attribute("max_nft_supply", msg.max_nft_supply))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -130,13 +145,9 @@ pub fn execute(
     let info_ref = &info;
     nonpayable(info_ref)?;
     let sender_addr_ref = &info.clone().sender;
-    let (
-        contract_addr,
-        admin_addr,
-        base_denom,
-        one_denom_in_base_denom,
-        metadata,
-    ) = get_commom_fields(deps.querier, deps.storage, env.clone())?;
+    let (contract_addr, admin_addr, one_denom_in_base_denom, metadata) =
+        get_commom_fields(deps.storage, env.clone())?;
+    let base_denom = metadata.base.as_str();
     match msg {
         ExecuteMsg::ChangeAdmin { new_admin_addr } => {
             assert_only_admin_can_call_this_function(
@@ -161,7 +172,7 @@ pub fn execute(
                 deps.querier,
                 amount,
                 one_denom_in_base_denom,
-                base_denom.as_str(),
+                base_denom,
                 metadata.uri.as_str(),
                 &contract_addr,
             )
@@ -177,7 +188,7 @@ pub fn execute(
                 deps.querier,
                 amount,
                 one_denom_in_base_denom,
-                base_denom.as_str(),
+                base_denom,
                 &contract_addr,
             )
         }
@@ -194,7 +205,7 @@ pub fn execute(
                 deps.storage,
                 deps.querier,
                 amount,
-                base_denom.as_str(),
+                base_denom,
                 one_denom_in_base_denom,
                 &deps.api.addr_validate(&recipient_addr)?,
                 metadata.uri.as_str(),
@@ -211,7 +222,7 @@ pub fn execute(
                 deps.storage,
                 deps.querier,
                 amount,
-                base_denom.as_str(),
+                base_denom,
                 one_denom_in_base_denom,
                 metadata.uri.as_str(),
                 &contract_addr,
@@ -261,7 +272,7 @@ pub fn execute(
             &deps.api.addr_validate(&recipient)?,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            base_denom.as_str(),
+            base_denom,
             &contract_addr,
         ),
         ExecuteMsg::SendNft {
@@ -274,7 +285,7 @@ pub fn execute(
             sender_addr_ref,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            base_denom.as_str(),
+            base_denom,
             &contract_addr,
             &deps.api.addr_validate(&contract)?,
             msg,
@@ -285,7 +296,7 @@ pub fn execute(
             &contract_addr,
             parse_token_id_from_string_to_uint128(token_id)?,
             one_denom_in_base_denom,
-            base_denom.as_str(),
+            base_denom,
             sender_addr_ref,
         ),
     }
@@ -293,32 +304,27 @@ pub fn execute(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    let (
-        _contract_addr,
-        admin_addr,
-        base_denom,
-        one_denom_in_base_denom,
-        metadata,
-    ) = get_commom_fields(deps.querier, deps.storage, env.clone())?;
+    let (_contract_addr, admin_addr, one_denom_in_base_denom, metadata) =
+        get_commom_fields(deps.storage, env.clone())?;
+    let base_denom = metadata.base.as_str();
     match msg {
         QueryMsg::Admin {} => to_json_binary(&query_admin(&admin_addr)?),
         // ======== FT functions ==========
-        QueryMsg::DenomMetadata {} => to_json_binary(&query_denom_metadata(
-            deps.querier,
-            base_denom.as_str(),
-        )?),
+        QueryMsg::DenomMetadata {} => {
+            to_json_binary(&query_denom_metadata(deps.storage)?)
+        }
         QueryMsg::Supply {} => to_json_binary({
             &query_supply(
                 deps.querier,
                 deps.storage,
-                base_denom.as_str(),
+                base_denom,
                 one_denom_in_base_denom,
             )?
         }),
         QueryMsg::Balance { owner } => to_json_binary(&query_balance(
             deps.querier,
             &deps.api.addr_validate(&owner)?,
-            base_denom.as_str(),
+            base_denom,
             one_denom_in_base_denom,
         )?),
         // ======== NFT functions ==========
@@ -434,19 +440,15 @@ pub fn sudo(
     env: Env,
     msg: SudoMsg,
 ) -> Result<Response, ContractError> {
-    let (
-        _contract_addr,
-        _admin_addr,
-        base_denom,
-        one_denom_in_base_denom,
-        metadata,
-    ) = get_commom_fields(deps.querier, deps.storage, env.clone())?;
+    let (_contract_addr, _admin_addr, one_denom_in_base_denom, metadata) =
+        get_commom_fields(deps.storage, env.clone())?;
+    let base_denom = metadata.base.as_str();
     match msg {
         SudoMsg::TrackBeforeSend { from, to, amount } => track_before_send(
             deps.storage,
             deps.querier,
             amount.amount,
-            base_denom.as_str(),
+            base_denom,
             one_denom_in_base_denom,
             metadata.uri.as_str(),
             &deps.api.addr_validate(&from)?,

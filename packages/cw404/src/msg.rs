@@ -1,11 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, Coin, DenomMetadataResponse, Empty, Uint128};
+use cosmwasm_std::{Binary, Coin, Empty, Uint128};
 use cw721::{
     AllNftInfoResponse, ApprovalResponse, ApprovalsResponse,
     ContractInfoResponse, NftInfoResponse, NumTokensResponse, OperatorResponse,
     OperatorsResponse, OwnerOfResponse, TokensResponse,
 };
 use cw_utils::Expiration;
+use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
 // ========== instantiate ==========
 
@@ -13,10 +14,11 @@ use cw_utils::Expiration;
 pub struct InstantiateMsg {
     pub admin_addr: String,
     pub max_nft_supply: Uint128,
-    // e.g. "atom", then base denom is "uatom", 1 ATOM = 1_000_000 uatom, 1 atom = 1 atom NFT
+    // e.g. subdenom = atom, then base subdenom is uatom,
+    // denom is factory/contract_addr/atom, base denom is factory/contract_addr/uatom
+    // 1 atom = 1_000_000 uatom, 1 atom = 1 atom NFT,
     pub subdenom: String,
     pub denom_description: String,
-    pub denom_display: String,
     pub denom_name: String,
     pub denom_symbol: String,
     pub denom_uri: String,
@@ -95,6 +97,11 @@ pub enum ExecuteMsg {
 #[cw_serde]
 pub struct AdminResponse {
     pub admin_addr: String,
+}
+
+#[cw_serde]
+pub struct DenomMetadataResponse {
+    pub metadata: Metadata,
 }
 
 #[cw_serde]

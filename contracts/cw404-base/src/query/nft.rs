@@ -5,8 +5,8 @@ use crate::{
     util::nft::humanize_approvals,
 };
 use cosmwasm_std::{
-    Addr, BlockInfo, DenomMetadata, Deps, Empty, Env, Order, StdError,
-    StdResult, Storage, Uint128,
+    Addr, BlockInfo, Deps, Empty, Env, Order, StdError, StdResult, Storage,
+    Uint128,
 };
 use cw721::{
     AllNftInfoResponse, Approval, ApprovalResponse, ApprovalsResponse,
@@ -15,6 +15,7 @@ use cw721::{
 };
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration};
+use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
 pub fn query_nft_owner(
     storage: &dyn Storage,
@@ -159,7 +160,7 @@ pub fn query_nft_num_tokens(
 }
 
 pub fn query_nft_contract_info(
-    metadata: DenomMetadata,
+    metadata: Metadata,
 ) -> StdResult<ContractInfoResponse> {
     Ok(ContractInfoResponse {
         name: metadata.name,

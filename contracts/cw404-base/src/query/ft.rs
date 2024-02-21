@@ -1,19 +1,12 @@
-use crate::state::{CURRENT_NFT_SUPPLY, MAX_NFT_SUPPLY};
-use cosmwasm_std::{
-    Addr, BankQuery, DenomMetadataResponse, QuerierWrapper, QueryRequest,
-    StdResult, Storage, Uint128,
-};
-use cw404::msg::{BalanceResponse, SupplyResponse};
+use crate::state::{CURRENT_NFT_SUPPLY, DENOM_METADATA, MAX_NFT_SUPPLY};
+use cosmwasm_std::{Addr, QuerierWrapper, StdResult, Storage, Uint128};
+use cw404::msg::{BalanceResponse, DenomMetadataResponse, SupplyResponse};
 
 pub fn query_denom_metadata(
-    querier: QuerierWrapper,
-    base_denom: &str,
+    storage: &dyn Storage,
 ) -> StdResult<DenomMetadataResponse> {
-    let metadata_resp: DenomMetadataResponse =
-        querier.query(&QueryRequest::Bank(BankQuery::DenomMetadata {
-            denom: base_denom.to_string(),
-        }))?;
-    Ok(metadata_resp)
+    let metadata = DENOM_METADATA.load(storage)?;
+    Ok(DenomMetadataResponse { metadata })
 }
 
 pub fn query_supply(

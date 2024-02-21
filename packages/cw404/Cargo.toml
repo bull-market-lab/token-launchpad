@@ -14,3 +14,4 @@ cosmwasm-storage = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-utils = { workspace = true }
 cw721 = { workspace = true }
+osmosis-std = { workspace = true }
