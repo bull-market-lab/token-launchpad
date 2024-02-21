@@ -22,7 +22,7 @@ use crate::{
         ADMIN_ADDR, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, DENOM_METADATA,
         MAX_NFT_SUPPLY,
     },
-    sudo::ft::track_before_send,
+    sudo::ft::{block_before_send, track_before_send},
     util::{
         assert::assert_only_admin_can_call_this_function,
         commom::get_commom_fields, nft::parse_token_id_from_string_to_uint128,
@@ -161,7 +161,7 @@ pub fn execute(
             )
         }
         // ======== FT (cosmos sdk native coin) functions ==========
-        ExecuteMsg::MintTokens { amount } => {
+        ExecuteMsg::MintFt { amount } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr,
@@ -177,7 +177,7 @@ pub fn execute(
                 &contract_addr,
             )
         }
-        ExecuteMsg::BurnTokens { amount } => {
+        ExecuteMsg::BurnFt { amount } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr,
@@ -192,7 +192,7 @@ pub fn execute(
                 &contract_addr,
             )
         }
-        ExecuteMsg::SendTokens {
+        ExecuteMsg::SendFt {
             amount,
             recipient_addr,
         } => {
@@ -202,17 +202,12 @@ pub fn execute(
                 "send_ft",
             )?;
             send_ft(
-                deps.storage,
-                deps.querier,
                 amount,
                 base_denom,
-                one_denom_in_base_denom,
                 &deps.api.addr_validate(&recipient_addr)?,
-                metadata.uri.as_str(),
-                &contract_addr,
             )
         }
-        ExecuteMsg::ForceTransfer { amount, from, to } => {
+        ExecuteMsg::ForceTransferFt { amount, from, to } => {
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
                 &admin_addr,
@@ -442,15 +437,22 @@ pub fn sudo(
 ) -> Result<Response, ContractError> {
     let (_contract_addr, _admin_addr, one_denom_in_base_denom, metadata) =
         get_commom_fields(deps.storage, env.clone())?;
-    let base_denom = metadata.base.as_str();
     match msg {
         SudoMsg::TrackBeforeSend { from, to, amount } => track_before_send(
             deps.storage,
             deps.querier,
             amount.amount,
-            base_denom,
+            amount.denom.as_str(),
             one_denom_in_base_denom,
-            metadata.uri.as_str(),
+            &metadata,
+            &deps.api.addr_validate(&from)?,
+            &deps.api.addr_validate(&to)?,
+        ),
+        SudoMsg::BlockBeforeSend { from, to, amount } => block_before_send(
+            amount.amount,
+            amount.denom.as_str(),
+            one_denom_in_base_denom,
+            &metadata,
             &deps.api.addr_validate(&from)?,
             &deps.api.addr_validate(&to)?,
         ),

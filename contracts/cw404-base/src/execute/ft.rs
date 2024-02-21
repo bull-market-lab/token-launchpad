@@ -89,45 +89,24 @@ pub fn burn_ft(
         .add_attribute("burn_nft_amount", burn_nft_amount))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn send_ft(
-    storage: &mut dyn Storage,
-    querier: QuerierWrapper,
     amount: Uint128,
     base_denom: &str,
-    one_denom_in_base_denom: Uint128,
     recipient_addr: &Addr,
-    base_uri: &str,
-    contract_addr: &Addr,
 ) -> Result<Response, ContractError> {
-    let burn_nft_amount = calculate_nft_to_burn_for_ft_burn(
-        querier,
-        contract_addr,
-        base_denom,
-        amount,
-        one_denom_in_base_denom,
-    )?;
-    batch_burn_nft(storage, contract_addr, burn_nft_amount)?;
-    let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
-        querier,
-        contract_addr,
-        base_denom,
-        amount,
-        one_denom_in_base_denom,
-    )?;
-    batch_mint_nft(storage, base_uri, recipient_addr, mint_nft_amount)?;
     let msg = BankMsg::Send {
         to_address: recipient_addr.to_string(),
         amount: coins(amount.u128(), base_denom),
     };
-    Ok(Response::new()
-        .add_message(msg)
-        .add_attribute("token_type", "ft")
-        .add_attribute("action", "send_ft")
-        .add_attribute("amount", amount)
-        .add_attribute("recipient_addr", recipient_addr)
-        .add_attribute("burn_nft_amount", burn_nft_amount)
-        .add_attribute("mint_nft_amount", mint_nft_amount))
+    Ok(
+        Response::new()
+            .add_message(msg)
+            .add_attribute("token_type", "ft")
+            .add_attribute("action", "send_ft")
+            .add_attribute("amount", amount)
+            .add_attribute("recipient_addr", recipient_addr)
+            .add_attribute("note", "nft_mint_and_burn_will_be_handled_by_before_send_hook_triggered_by_the_bank_transfer")
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -34,18 +34,22 @@ pub enum ExecuteMsg {
         new_admin_addr: String,
     },
     // Can only mint token to admin account
-    MintTokens {
+    MintFt {
+        /// amount is in base denom
         amount: Uint128,
     },
     // Can only burn token from admin account
-    BurnTokens {
+    BurnFt {
+        /// amount is in base denom
         amount: Uint128,
     },
-    SendTokens {
+    SendFt {
+        /// amount is in base denom
         amount: Uint128,
         recipient_addr: String,
     },
-    ForceTransfer {
+    ForceTransferFt {
+        /// amount is in base denom
         amount: Uint128,
         from: String,
         to: String,
@@ -215,6 +219,11 @@ pub enum MigrateMsg {}
 #[cw_serde]
 pub enum SudoMsg {
     TrackBeforeSend {
+        from: String,
+        to: String,
+        amount: Coin,
+    },
+    BlockBeforeSend {
         from: String,
         to: String,
         amount: Coin,

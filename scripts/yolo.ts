@@ -1,59 +1,116 @@
 import * as fs from "fs";
 
 import { getSigningClient, getQueryClient } from "./util";
+import {
+  CosmWasmClient,
+  SigningCosmWasmClient,
+} from "@cosmjs/cosmwasm-stargate";
+
+const printBalance = async (
+  queryClient: CosmWasmClient,
+  cw404ContractAddress: string,
+  signerAddress: string
+) => {
+  await queryClient
+    .queryContractSmart(cw404ContractAddress, {
+      balance: {
+        owner: signerAddress,
+      },
+    })
+    .then((res) => {
+      console.log("admin balance", JSON.stringify(res));
+    });
+
+  await queryClient
+    .queryContractSmart(cw404ContractAddress, {
+      balance: {
+        owner: cw404ContractAddress,
+      },
+    })
+    .then((res) => {
+      console.log("cw404 contract balance", JSON.stringify(res));
+    });
+};
+
+const mintFt = async (
+  siggingClient: SigningCosmWasmClient,
+  cw404ContractAddress: string,
+  signerAddress: string,
+  amount: string
+) => {
+  await siggingClient
+    .execute(
+      signerAddress,
+      cw404ContractAddress,
+      {
+        mint_ft: {
+          amount,
+        },
+      },
+      "auto",
+      "memooooo",
+      []
+    )
+    .then((res) => {
+      console.log(res.transactionHash);
+    });
+};
+
+const contractSend = async (
+  siggingClient: SigningCosmWasmClient,
+  cw404ContractAddress: string,
+  signerAddress: string,
+  recipientAddress: string,
+  amount: string
+) => {
+  await siggingClient
+    .execute(
+      signerAddress,
+      cw404ContractAddress,
+      {
+        send_ft: {
+          recipient_addr: recipientAddress,
+          amount,
+        },
+      },
+      "auto",
+      "memooooo",
+      []
+    )
+    .then((res) => {
+      console.log(res.transactionHash);
+    });
+};
 
 const run = async () => {
-  const { threadContractAddress } = JSON.parse(
+  const { cw404ContractAddress } = JSON.parse(
     fs.readFileSync("scripts/contract_addresses.json").toString()
   );
   const { signerAddress, siggingClient } = await getSigningClient();
   const queryClient = await getQueryClient();
 
-  const asker_user_id = "1";
-  const answerer_user_id = "2";
-  const new_thread = {
-    title: "title aaa",
-    labels: ["label1", "label2"],
-    mutable: false,
-  };
-  const ask_in_new_thread_msg = {
-    new_thread,
-    fee_mode: "fixed",
-    answerer_user_id,
-    content_storage: {
-      on_chain: {
-        content: "hahaha",
-        content_format: "plain_text",
-      },
-    },
-    tip: "100",
-  };
-  const cost = await queryClient.queryContractSmart(threadContractAddress, {
-    query_cost_to_ask_in_new_thread: {
-      asker_user_id,
-      ask_in_new_thread_msg,
-    },
-  });
-  console.log("cost", JSON.stringify(cost, null, 2));
-  await siggingClient
-    .execute(
-      signerAddress,
-      threadContractAddress,
-      {
-        ask_in_new_thread: ask_in_new_thread_msg,
-      },
-      "auto",
-      "memooooo",
-      [
-        {
-          denom: "uosmo",
-          amount: cost.total_needed_from_user as string,
-        },
-      ]
-    )
-    .then((res) => {
-      console.log(res.transactionHash);
-    });
+  // printBalance(queryClient, cw404ContractAddress, signerAddress);
+
+  const mintAmount = 2_500_000;
+
+  // mintFt(
+  //   siggingClient,
+  //   cw404ContractAddress,
+  //   signerAddress,
+  //   mintAmount.toString()
+  // );
+
+  const sendAmount = 900_000;
+
+  // contractSend(
+  //   siggingClient,
+  //   cw404ContractAddress,
+  //   signerAddress,
+  //   signerAddress,
+  //   sendAmount.toString()
+  // );
+
+  printBalance(queryClient, cw404ContractAddress, signerAddress);
 };
 
 run();
