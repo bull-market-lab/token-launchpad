@@ -15,7 +15,7 @@ use crate::{
             query_all_nft_infos, query_all_nfts, query_all_nfts_operators,
             query_nft_approval, query_nft_approvals, query_nft_contract_info,
             query_nft_info, query_nft_num_tokens, query_nft_operator,
-            query_nft_owner, query_nfts,
+            query_nft_owner, query_nfts, query_recycled_nft_token_ids,
         },
     },
     state::{
@@ -33,10 +33,7 @@ use cosmwasm_std::{
     MessageInfo, Reply, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw404::msg::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RecycledTokenIdsResponse,
-    SudoMsg,
-};
+use cw404::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
 use cw_utils::nonpayable;
 use osmosis_std::types::{
     cosmos::bank::v1beta1::{DenomUnit, Metadata},
@@ -306,12 +303,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         get_commom_fields(deps.storage, env.clone())?;
     let base_denom = metadata.base.as_str();
     match msg {
+        // ======== custom functions ==========
         QueryMsg::Admin {} => to_json_binary(&query_admin(&admin_addr)?),
-        QueryMsg::RecycledTokenIds {} => {
-            let recycled_token_ids: Vec<Uint128> = RECYCLED_NFT_IDS
-                .iter(deps.storage)?
-                .collect::<StdResult<Vec<_>>>()?;
-            to_json_binary(&RecycledTokenIdsResponse { recycled_token_ids })
+        QueryMsg::RecycledNftTokenIds {} => {
+            to_json_binary(&query_recycled_nft_token_ids(deps.storage)?)
         }
         // ======== FT functions ==========
         QueryMsg::DenomMetadata {} => {

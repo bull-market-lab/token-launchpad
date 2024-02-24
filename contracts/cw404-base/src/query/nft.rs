@@ -1,6 +1,7 @@
 use crate::{
     state::{
         CURRENT_NFT_SUPPLY, DEFAULT_LIMIT, MAX_LIMIT, NFTS, NFT_OPERATORS,
+        RECYCLED_NFT_IDS,
     },
     util::nft::humanize_approvals,
 };
@@ -8,6 +9,7 @@ use cosmwasm_std::{
     Addr, BlockInfo, Deps, Empty, Env, Order, StdError, StdResult, Storage,
     Uint128,
 };
+use cw404::msg::RecycledNftTokenIdsResponse;
 use cw721::{
     AllNftInfoResponse, Approval, ApprovalResponse, ApprovalsResponse,
     ContractInfoResponse, NftInfoResponse, NumTokensResponse, OperatorResponse,
@@ -16,6 +18,17 @@ use cw721::{
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration};
 use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
+
+pub fn query_recycled_nft_token_ids(
+    storage: &dyn Storage,
+) -> StdResult<RecycledNftTokenIdsResponse> {
+    let recycled_nft_token_ids: Vec<Uint128> = RECYCLED_NFT_IDS
+        .iter(storage)?
+        .collect::<StdResult<Vec<_>>>()?;
+    Ok(RecycledNftTokenIdsResponse {
+        recycled_nft_token_ids,
+    })
+}
 
 pub fn query_nft_owner(
     storage: &dyn Storage,
