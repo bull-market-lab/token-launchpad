@@ -76,7 +76,10 @@ pub fn create_collecion(
             admin: None,
             code_id: config.cw404_code_id.u64(),
             msg: to_json_binary(&Cw404InstantiateMsg {
+                // set to None so no one can burn or force transfer FT of the new CW404 collection
                 admin: None,
+                // set minter to launchpad contract address so only launchpad contract can mint NFTs
+                // so all users mint through launchpad contract
                 minter: Some(launchpad_contract_addr.to_string()),
                 creator: creator_addr.to_string(),
                 max_nft_supply,

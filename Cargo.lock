@@ -720,7 +720,6 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
- "cw-utils 1.0.3",
 ]
 
 [[package]]
