@@ -7,21 +7,24 @@ use cosmwasm_std::{
     Addr, BlockInfo, Order, QuerierWrapper, StdError, StdResult, Storage,
     Uint128,
 };
-use cw404::nft::Nft;
-use cw721::Approval;
+use cw2981_royalties::{Extension as NftExtension, Metadata as NftMetadata};
+use cw721::Approval as Cw721Approval;
+use cw721_base::state::{
+    Approval as Cw721BaseApproval, TokenInfo as NftTokenInfo,
+};
 use cw_utils::Expiration;
 
-fn humanize_approval(approval: &Approval) -> Approval {
-    Approval {
-        spender: approval.clone().spender,
+fn humanize_approval(approval: &Cw721BaseApproval) -> Cw721Approval {
+    Cw721Approval {
+        spender: approval.spender.to_string(),
         expires: approval.expires,
     }
 }
 pub fn humanize_approvals(
     block: &BlockInfo,
-    nft: &Nft,
+    nft: &NftTokenInfo<NftExtension>,
     include_expired: bool,
-) -> Vec<Approval> {
+) -> Vec<Cw721Approval> {
     nft.approvals
         .iter()
         .filter(|apr| include_expired || !apr.expires.is_expired(block))
@@ -86,10 +89,15 @@ pub fn batch_mint_nft(
         };
         NFTS().update(storage, token_id.u128(), |old| match old {
             Some(_) => Err(ContractError::NftTokenIdAlreadyInUse { token_id }),
-            None => Ok(Nft {
+            None => Ok(NftTokenInfo {
                 owner: owner_addr.clone(),
                 approvals: vec![],
                 token_uri: Some(format!("{}/{}", base_uri, token_id)),
+                extension: Some(NftMetadata {
+                    royalty_payment_address: None,
+                    royalty_percentage: None,
+                    ..NftMetadata::default()
+                }),
             }),
         })?;
     }
@@ -135,7 +143,7 @@ pub fn update_approvals(
     // if add == false, remove. if add == true, remove then set with this expiration
     add: bool,
     expires: Option<Expiration>,
-) -> Result<Nft, ContractError> {
+) -> Result<NftTokenInfo<NftExtension>, ContractError> {
     let mut nft = NFTS().load(storage, token_id.u128())?;
     // ensure we have permissions
     assert_can_update_approvals(storage, block, &nft.owner, sender_addr)?;
@@ -148,8 +156,8 @@ pub fn update_approvals(
         if expires.is_expired(block) {
             return Err(ContractError::Expired {});
         }
-        let approval = Approval {
-            spender: spender_addr.to_string(),
+        let approval = Cw721BaseApproval {
+            spender: spender_addr.clone(),
             expires,
         };
         nft.approvals.push(approval);
@@ -164,7 +172,7 @@ pub fn transfer_nft_helper(
     sender_addr: &Addr,
     recipient_addr: &Addr,
     token_id: Uint128,
-) -> Result<Nft, ContractError> {
+) -> Result<NftTokenInfo<NftExtension>, ContractError> {
     let mut nft = NFTS().load(storage, token_id.u128())?;
     // ensure we have permissions
     assert_can_send(storage, block, sender_addr, token_id)?;

@@ -56,7 +56,7 @@ pub fn query_nft_approval(
 
     // token owner has absolute approval
     if nft.owner == spender {
-        let approval = cw721::Approval {
+        let approval = Approval {
             spender: nft.owner.to_string(),
             expires: Expiration::Never {},
         };
@@ -70,8 +70,8 @@ pub fn query_nft_approval(
         .filter(|t| {
             include_expired.unwrap_or(false) || !t.expires.is_expired(block)
         })
-        .map(|a| cw721::Approval {
-            spender: a.spender,
+        .map(|a| Approval {
+            spender: a.spender.to_string(),
             expires: a.expires,
         })
         .collect();
@@ -98,8 +98,8 @@ pub fn query_nft_approvals(
         .filter(|t| {
             include_expired.unwrap_or(false) || !t.expires.is_expired(block)
         })
-        .map(|a| cw721::Approval {
-            spender: a.spender,
+        .map(|a| Approval {
+            spender: a.spender.to_string(),
             expires: a.expires,
         })
         .collect();
@@ -120,7 +120,7 @@ pub fn query_nft_operator(
                 Err(StdError::not_found("Approval not found"))
             } else {
                 Ok(OperatorResponse {
-                    approval: cw721::Approval {
+                    approval: Approval {
                         spender: operator_addr.to_string(),
                         expires,
                     },
@@ -173,11 +173,11 @@ pub fn query_nft_num_tokens(
 }
 
 pub fn query_nft_contract_info(
-    metadata: Metadata,
+    metadata: &Metadata,
 ) -> StdResult<ContractInfoResponse> {
     Ok(ContractInfoResponse {
-        name: metadata.name,
-        symbol: metadata.symbol,
+        name: metadata.name.clone(),
+        symbol: metadata.symbol.clone(),
     })
 }
 

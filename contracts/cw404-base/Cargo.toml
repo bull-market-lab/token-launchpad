@@ -23,6 +23,8 @@ cw-storage-plus = { workspace = true }
 cw-utils = { workspace = true }
 cw2 = { workspace = true }
 cw721 = { workspace = true }
+cw721-base = { workspace = true }
+cw2981-royalties = { workspace = true }
 osmosis-std = { workspace = true }
 
 thiserror = { workspace = true }

@@ -10,10 +10,10 @@ const run = async () => {
 
   await queryClient
     .queryContractSmart(cw404ContractAddress, {
-      denom_metadata: {},
+      config: {},
     })
     .then((res) => {
-      console.log("denom metadata", JSON.stringify(res));
+      console.log("config", JSON.stringify(res));
     });
 
   await queryClient

@@ -1,13 +1,6 @@
-use crate::state::{CURRENT_NFT_SUPPLY, DENOM_METADATA, MAX_NFT_SUPPLY};
+use crate::state::{CURRENT_NFT_SUPPLY, MAX_NFT_SUPPLY};
 use cosmwasm_std::{Addr, QuerierWrapper, StdResult, Storage, Uint128};
-use cw404::msg::{BalanceResponse, DenomMetadataResponse, SupplyResponse};
-
-pub fn query_denom_metadata(
-    storage: &dyn Storage,
-) -> StdResult<DenomMetadataResponse> {
-    let metadata = DENOM_METADATA.load(storage)?;
-    Ok(DenomMetadataResponse { metadata })
-}
+use cw404::msg::{BalanceResponse, SupplyResponse};
 
 pub fn query_supply(
     querier: QuerierWrapper,

@@ -15,6 +15,7 @@ const run = async () => {
       {
         mint_ft: {
           amount: mintAmount.toString(),
+          recipient: signerAddress,
         },
       },
       "auto",

@@ -1,8 +1,8 @@
-use cosmwasm_std::{Addr, StdResult};
-use cw404::msg::AdminResponse;
+use cosmwasm_std::StdResult;
+use cw404::{config::Config, msg::ConfigResponse};
 
-pub fn query_admin(admin_addr: &Addr) -> StdResult<AdminResponse> {
-    Ok(AdminResponse {
-        admin_addr: admin_addr.to_string(),
+pub fn query_config(config: &Config) -> StdResult<ConfigResponse> {
+    Ok(ConfigResponse {
+        config: config.clone(),
     })
 }

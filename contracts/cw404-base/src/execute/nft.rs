@@ -92,7 +92,6 @@ pub fn revoke_all_nft(
         .add_attribute("operator", operator_addr))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn transfer_nft(
     storage: &mut dyn Storage,
     block: &BlockInfo,
@@ -121,7 +120,6 @@ pub fn transfer_nft(
         .add_attribute("token_id", token_id))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn send_nft(
     storage: &mut dyn Storage,
     block: &BlockInfo,

@@ -8,7 +8,7 @@ const storeCode = async (
   signingClient: SigningCosmWasmClient
 ) => {
   const wasmCodeDirectory = "artifacts/";
-  const cw404 = wasmCodeDirectory + "cw404_base.wasm";
+  const cw404 = wasmCodeDirectory + "cw404_base-aarch64.wasm";
 
   const cw404CodeId = (
     await signingClient.upload(
@@ -43,7 +43,10 @@ const init = async (
       signerAddress,
       cw404CodeId,
       {
-        admin_addr: signerAddress,
+        admin: signerAddress,
+        minter: signerAddress,
+        royalty_payment_address: signerAddress,
+        royalty_percentage: "10",
         max_nft_supply: "1000",
         // e.g. "atom", then base denom is "uatom", 1 ATOM = 1_000_000 uatom, 1 atom = 1 atom NFT
         subdenom: "bad404",

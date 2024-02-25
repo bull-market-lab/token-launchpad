@@ -23,7 +23,6 @@ fn convert_to_base_denom_and_base_amount(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn track_before_send(
     storage: &mut dyn Storage,
     querier: QuerierWrapper,
@@ -61,11 +60,10 @@ pub fn track_before_send(
             .add_attribute("token_type", "ft")
             .add_attribute("action", "track_before_send")
             .add_attribute("from", from_addr)
-            .add_attribute("to", to_addr)
-            // .add_attribute("amount_in_base_denom", base_amount)
-            // .add_attribute("base_denom", base_denom), 
-            // .add_attribute("burn_nft_amount", burn_nft_amount)
-                                                      // .add_attribute("mint_nft_amount", mint_nft_amount)
+            .add_attribute("to", to_addr), // .add_attribute("amount_in_base_denom", base_amount)
+                                           // .add_attribute("base_denom", base_denom),
+                                           // .add_attribute("burn_nft_amount", burn_nft_amount)
+                                           // .add_attribute("mint_nft_amount", mint_nft_amount)
     )
 }
 

@@ -1,18 +1,21 @@
+use crate::config::Config;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, Coin, Empty, Uint128};
+use cosmwasm_std::{Binary, Coin, Empty, Uint128, Uint64};
 use cw721::{
     AllNftInfoResponse, ApprovalResponse, ApprovalsResponse,
     ContractInfoResponse, NftInfoResponse, NumTokensResponse, OperatorResponse,
     OperatorsResponse, OwnerOfResponse, TokensResponse,
 };
 use cw_utils::Expiration;
-use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
 // ========== instantiate ==========
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub admin_addr: String,
+    pub admin: Option<String>,
+    pub minter: Option<String>,
+    pub royalty_payment_address: Option<String>,
+    pub royalty_percentage: Option<Uint64>,
     pub max_nft_supply: Uint128,
     // e.g. subdenom = atom, then base subdenom is uatom,
     // denom is factory/contract_addr/atom, base denom is factory/contract_addr/uatom
@@ -30,24 +33,29 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     // ========== FT functions ==========
-    ChangeAdmin {
-        new_admin_addr: String,
+    UpdateConfig {
+        new_admin: Option<String>,
+        new_minter: Option<String>,
+        new_royalty_payment_address: Option<String>,
+        new_royalty_percentage: Option<Uint64>,
     },
-    // Can only mint token to admin account
+    // TODO: add reveal_metadata msg
+    /// Mint FT
+    /// Only admin or minter can execute this
     MintFt {
-        /// amount is in base denom
+        /// amount is in base denom, e.g. uatom
         amount: Uint128,
+        // recipient address
+        recipient: String,
     },
-    // Can only burn token from admin account
+    /// Burn FT
+    /// Only admin can execute this
     BurnFt {
         /// amount is in base denom
         amount: Uint128,
     },
-    SendFt {
-        /// amount is in base denom
-        amount: Uint128,
-        recipient_addr: String,
-    },
+    /// Force transfer FT from one account to another
+    /// Only admin can execute this
     ForceTransferFt {
         /// amount is in base denom
         amount: Uint128,
@@ -55,7 +63,6 @@ pub enum ExecuteMsg {
         to: String,
     },
     // ========== NFT functions ==========
-    // ========== cw721 ==========
     /// Allows operator to transfer / send the token from the owner's account.
     /// If expiration is set, then this allowance has a time/height limit
     Approve {
@@ -70,19 +77,11 @@ pub enum ExecuteMsg {
         expires: Option<Expiration>,
     },
     /// Remove previously granted Approval
-    Revoke {
-        spender: String,
-        token_id: String,
-    },
+    Revoke { spender: String, token_id: String },
     /// Remove previously granted ApproveAll permission
-    RevokeAll {
-        operator: String,
-    },
+    RevokeAll { operator: String },
     /// Transfer is a base message to move a token to another account without triggering actions
-    TransferNft {
-        recipient: String,
-        token_id: String,
-    },
+    TransferNft { recipient: String, token_id: String },
     /// Send is a base message to transfer a token to a contract and trigger an action
     /// on the receiving contract.
     SendNft {
@@ -91,21 +90,14 @@ pub enum ExecuteMsg {
         msg: Binary,
     },
     /// Burn an NFT the sender has access to
-    Burn {
-        token_id: String,
-    },
+    Burn { token_id: String },
 }
 
 // ========== query ==========
 
 #[cw_serde]
-pub struct AdminResponse {
-    pub admin_addr: String,
-}
-
-#[cw_serde]
-pub struct DenomMetadataResponse {
-    pub metadata: Metadata,
+pub struct ConfigResponse {
+    pub config: Config,
 }
 
 #[cw_serde]
@@ -132,14 +124,11 @@ pub struct RecycledNftTokenIdsResponse {
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {
-    // ========== custom functions ==========
-    #[returns(AdminResponse)]
-    Admin {},
+    // ========== general functions ==========
+    #[returns(ConfigResponse)]
+    Config {},
     #[returns(RecycledNftTokenIdsResponse)]
     RecycledNftTokenIds {},
-    // ========== FT functions ==========
-    #[returns(DenomMetadataResponse)]
-    DenomMetadata {},
     #[returns(SupplyResponse)]
     Supply {},
     #[returns(BalanceResponse)]
@@ -226,11 +215,11 @@ pub enum MigrateMsg {}
 // ========== sudo ==========
 #[cw_serde]
 pub enum SudoMsg {
-    TrackBeforeSend {
-        from: String,
-        to: String,
-        amount: Coin,
-    },
+    // TrackBeforeSend {
+    //     from: String,
+    //     to: String,
+    //     amount: Coin,
+    // },
     BlockBeforeSend {
         from: String,
         to: String,

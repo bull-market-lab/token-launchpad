@@ -25,6 +25,7 @@ pub fn mint_ft(
     base_denom: &str,
     base_uri: &str,
     contract_addr: &Addr,
+    recipient_addr: &Addr,
 ) -> Result<Response, ContractError> {
     let current_base_denom_supply = querier.query_supply(base_denom)?.amount;
     let max_nft_supply = MAX_NFT_SUPPLY.load(storage)?;
@@ -47,10 +48,16 @@ pub fn mint_ft(
             amount: amount.to_string(),
             denom: base_denom.to_string(),
         }),
+        // TODO: test if we can mint straight to the recipient
         mint_to_address: contract_addr.to_string(),
+    };
+    let send_ft_msg = BankMsg::Send {
+        to_address: recipient_addr.to_string(),
+        amount: coins(amount.u128(), base_denom),
     };
     Ok(Response::new()
         .add_message(mint_ft_msg)
+        .add_message(send_ft_msg)
         .add_attribute("token_type", "ft")
         .add_attribute("action", "mint_ft")
         .add_attribute("amount", amount)
@@ -79,6 +86,7 @@ pub fn burn_ft(
             amount: amount.to_string(),
             denom: base_denom.to_string(),
         }),
+        // TODO: test if we can burn straight from the a designated address
         burn_from_address: contract_addr.to_string(),
     };
     Ok(Response::new()
@@ -89,27 +97,6 @@ pub fn burn_ft(
         .add_attribute("burn_nft_amount", burn_nft_amount))
 }
 
-pub fn send_ft(
-    amount: Uint128,
-    base_denom: &str,
-    recipient_addr: &Addr,
-) -> Result<Response, ContractError> {
-    let msg = BankMsg::Send {
-        to_address: recipient_addr.to_string(),
-        amount: coins(amount.u128(), base_denom),
-    };
-    Ok(
-        Response::new()
-            .add_message(msg)
-            .add_attribute("token_type", "ft")
-            .add_attribute("action", "send_ft")
-            .add_attribute("amount", amount)
-            .add_attribute("recipient_addr", recipient_addr)
-            .add_attribute("note", "nft_mint_and_burn_will_be_handled_by_before_send_hook_triggered_by_the_bank_transfer")
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
 pub fn force_transfer_ft(
     storage: &mut dyn Storage,
     querier: QuerierWrapper,

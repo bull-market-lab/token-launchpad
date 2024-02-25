@@ -32,6 +32,8 @@ cw-storage-plus = "1.2.0"
 cw-utils = "1.0.3"
 cw2 = "1.1.2"
 cw721 = "0.18.0"
+cw721-base = "0.18.0"
+cw2981-royalties = "0.18.0"
 
 thiserror = "1.0.52"
 
@@ -41,6 +43,7 @@ anyhow = "1.0.77"
 
 # my packages
 cw404 = { path = "./packages/cw404" }
+launchpad-pkg = { path = "./packages/launchpad-pkg" }
 
 # my contracts
 cw404-base = { path = "./contracts/cw404-base" }
