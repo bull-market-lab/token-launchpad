@@ -1,21 +1,28 @@
-import { getSigningClient } from "../util";
+import * as fs from "fs";
+import { getSigningClient, getQueryClient } from "../util";
 
 const run = async () => {
+  const { cw404ContractAddress } = JSON.parse(
+    fs.readFileSync("scripts/contract_addresses.json").toString()
+  );
+  const queryClient = await getQueryClient();
   const { signerAddress, siggingClient } = await getSigningClient();
-
   const sendAmount = 700;
   const recipientAddress = "neutron1d5k3kzd98683zcg6p8ev8h56tg6tk83pry02xx";
-
-  const denom =
-    "factory/neutron1fvfek4nxjrk807d5aq5p5jyg4qarzlef03u2v9eyryrwkjkwnwss95wz6x/ubad404";
-
+  const configResp = await queryClient.queryContractSmart(
+    cw404ContractAddress,
+    {
+      config: {},
+    }
+  );
+  const baseDenom = configResp.config.denom_metadata.base;
   await siggingClient
     .sendTokens(
       signerAddress,
       recipientAddress,
       [
         {
-          denom,
+          denom: baseDenom,
           amount: sendAmount.toString(),
         },
       ],
