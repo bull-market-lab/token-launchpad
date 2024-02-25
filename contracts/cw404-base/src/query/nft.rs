@@ -6,7 +6,7 @@ use crate::{
     util::nft::humanize_approvals,
 };
 use cosmwasm_std::{
-    Addr, BlockInfo, Deps, Empty, Env, Order, StdError, StdResult, Storage,
+    Addr, Api, BlockInfo, Empty, Env, Order, StdError, StdResult, Storage,
     Uint128,
 };
 use cw404::msg::RecycledNftTokenIdsResponse;
@@ -132,7 +132,8 @@ pub fn query_nft_operator(
 }
 
 pub fn query_all_nfts_operators(
-    deps: Deps,
+    api: &dyn Api,
+    storage: &dyn Storage,
     block: &BlockInfo,
     owner: String,
     include_expired: Option<bool>,
@@ -140,13 +141,13 @@ pub fn query_all_nfts_operators(
     limit: Option<u32>,
 ) -> StdResult<OperatorsResponse> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start_addr = maybe_addr(deps.api, start_after)?;
+    let start_addr = maybe_addr(api, start_after)?;
     let start = start_addr.as_ref().map(Bound::exclusive);
 
-    let owner_addr = deps.api.addr_validate(&owner)?;
+    let owner_addr = api.addr_validate(&owner)?;
     let res: Vec<Approval> = NFT_OPERATORS
         .prefix(&owner_addr)
-        .range(deps.storage, start, None, Order::Ascending)
+        .range(storage, start, None, Order::Ascending)
         .filter(|r| {
             include_expired.unwrap_or(false)
                 || r.is_err()
@@ -182,10 +183,10 @@ pub fn query_nft_contract_info(
 }
 
 pub fn query_nft_info(
-    deps: Deps,
+    storage: &dyn Storage,
     token_id: Uint128,
 ) -> StdResult<NftInfoResponse<Empty>> {
-    let nft = NFTS().load(deps.storage, token_id.u128())?;
+    let nft = NFTS().load(storage, token_id.u128())?;
     Ok(NftInfoResponse {
         token_uri: nft.token_uri,
         extension: Empty {},
@@ -193,12 +194,12 @@ pub fn query_nft_info(
 }
 
 pub fn query_all_nft_infos(
-    deps: Deps,
+    storage: &dyn Storage,
     env: Env,
     token_id: Uint128,
     include_expired: Option<bool>,
 ) -> StdResult<AllNftInfoResponse<Empty>> {
-    let nft = NFTS().load(deps.storage, token_id.u128())?;
+    let nft = NFTS().load(storage, token_id.u128())?;
     Ok(AllNftInfoResponse {
         access: OwnerOfResponse {
             owner: nft.owner.to_string(),
@@ -216,7 +217,7 @@ pub fn query_all_nft_infos(
 }
 
 pub fn query_nfts(
-    deps: Deps,
+    storage: &dyn Storage,
     owner_addr: &Addr,
     start_after: Option<String>,
     limit: Option<u32>,
@@ -228,7 +229,7 @@ pub fn query_nfts(
         .idx
         .owner
         .prefix(owner_addr.clone())
-        .keys(deps.storage, start, None, Order::Ascending)
+        .keys(storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| item.map(|k| k.to_string()))
         .collect::<StdResult<Vec<_>>>()?;

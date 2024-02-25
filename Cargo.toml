@@ -47,3 +47,4 @@ launchpad-pkg = { path = "./packages/launchpad-pkg" }
 
 # my contracts
 cw404-base = { path = "./contracts/cw404-base" }
+launchpad = { path = "./contracts/launchpad" }

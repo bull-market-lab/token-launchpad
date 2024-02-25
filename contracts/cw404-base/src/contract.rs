@@ -19,7 +19,7 @@ use crate::{
         },
     },
     state::{CONFIG, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, MAX_NFT_SUPPLY},
-    sudo::ft::{block_before_send, track_before_send},
+    sudo::ft::block_before_send,
     util::{
         assert::assert_only_admin_can_call_this_function,
         nft::parse_token_id_from_string_to_uint128,
@@ -114,6 +114,7 @@ pub fn instantiate(
                 .minter
                 .clone()
                 .map(|addr| deps.api.addr_validate(&addr).unwrap()),
+            creator: deps.api.addr_validate(&msg.creator)?,
             denom_metadata: metadata.clone(),
             royalty_payment_address: msg
                 .royalty_payment_address
@@ -145,6 +146,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_messages(msgs)
         .add_attribute("action", "instantiate")
+        .add_attribute("contract_addr", env.contract.address)
         .add_attribute(
             "admin_addr",
             match msg.admin {
@@ -159,6 +161,7 @@ pub fn instantiate(
                 None => "None".to_string(),
             },
         )
+        .add_attribute("creator_addr", msg.creator)
         .add_attribute("denom", denom)
         .add_attribute("base_denom", base_denom)
         .add_attribute("max_nft_supply", msg.max_nft_supply))
@@ -395,7 +398,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_all_nfts_operators(
-            deps,
+            deps.api,
+            deps.storage,
             &env.block,
             owner,
             include_expired,
@@ -409,14 +413,14 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &config_ref.denom_metadata,
         )?),
         QueryMsg::NftInfo { token_id } => to_json_binary(&query_nft_info(
-            deps,
+            deps.storage,
             parse_token_id_from_string_to_uint128(token_id)?,
         )?),
         QueryMsg::AllNftInfo {
             token_id,
             include_expired,
         } => to_json_binary(&query_all_nft_infos(
-            deps,
+            deps.storage,
             env,
             parse_token_id_from_string_to_uint128(token_id)?,
             include_expired,
@@ -426,7 +430,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_nfts(
-            deps,
+            deps.storage,
             &deps.api.addr_validate(&owner)?,
             start_after,
             limit,
@@ -458,22 +462,12 @@ pub fn reply(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     msg: SudoMsg,
 ) -> Result<Response, ContractError> {
     let config_ref = &CONFIG.load(deps.storage)?;
     let one_denom_in_base_denom = Uint128::from(10u128.pow(DENOM_EXPONENT));
     match msg {
-        // SudoMsg::TrackBeforeSend { from, to, amount } => track_before_send(
-        //     deps.storage,
-        //     deps.querier,
-        //     amount.amount,
-        //     amount.denom.as_str(),
-        //     one_denom_in_base_denom,
-        //     &metadata,
-        //     &deps.api.addr_validate(&from)?,
-        //     &deps.api.addr_validate(&to)?,
-        // ),
         SudoMsg::BlockBeforeSend { from, to, amount } => block_before_send(
             deps.storage,
             deps.querier,

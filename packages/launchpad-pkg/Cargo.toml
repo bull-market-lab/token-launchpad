@@ -13,5 +13,3 @@ cosmwasm-std = { workspace = true }
 cosmwasm-storage = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-utils = { workspace = true }
-
-cw404 = { workspace = true }

@@ -14,6 +14,7 @@ use cw_utils::Expiration;
 pub struct InstantiateMsg {
     pub admin: Option<String>,
     pub minter: Option<String>,
+    pub creator: String,
     pub royalty_payment_address: Option<String>,
     pub royalty_percentage: Option<Uint64>,
     pub max_nft_supply: Uint128,
@@ -215,11 +216,6 @@ pub enum MigrateMsg {}
 // ========== sudo ==========
 #[cw_serde]
 pub enum SudoMsg {
-    // TrackBeforeSend {
-    //     from: String,
-    //     to: String,
-    //     amount: Coin,
-    // },
     BlockBeforeSend {
         from: String,
         to: String,

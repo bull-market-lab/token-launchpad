@@ -4,10 +4,12 @@ use osmosis_std::types::cosmos::bank::v1beta1::Metadata as DenomMetadata;
 
 #[cw_serde]
 pub struct Config {
-    /// Admin can mint, burn and force transfer FT
+    /// If exists, admin can mint, burn and force transfer FT
     pub admin: Option<Addr>,
-    /// Minter can mint FT
+    /// If exists, minter can mint FT
     pub minter: Option<Addr>,
+    /// Creator of the collection
+    pub creator: Addr,
     pub denom_metadata: DenomMetadata,
     pub royalty_payment_address: Option<Addr>,
     pub royalty_percentage: Option<Uint64>,

@@ -697,6 +697,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "launchpad"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "cw404",
+ "launchpad-pkg",
+ "thiserror",
+]
+
+[[package]]
 name = "launchpad-pkg"
 version = "0.1.0"
 dependencies = [
@@ -704,7 +721,6 @@ dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-utils 1.0.3",
- "cw404",
 ]
 
 [[package]]

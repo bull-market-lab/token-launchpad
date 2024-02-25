@@ -3,8 +3,8 @@ use cosmwasm_std::Addr;
 
 #[cw_serde]
 pub struct Collection {
-    /// The owner of the collection
-    pub owner: Addr,
-    /// Whether the collection has started minting
-    pub minting_started: bool,
+    /// The creator of the collection
+    pub creator_addr: Addr,
+    /// The address of the collection
+    pub collection_addr: Addr,
 }
