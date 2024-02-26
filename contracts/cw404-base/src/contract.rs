@@ -20,11 +20,15 @@ use crate::{
         },
     },
     state::{
-        CONFIG, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, MAX_NFT_SUPPLY, MINT_GROUPS,
+        CONFIG, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, FEE_DENOM, MAX_NFT_SUPPLY,
+        MINT_GROUPS,
     },
     sudo::ft::block_before_send,
     util::{
-        assert::assert_only_admin_can_call_this_function,
+        assert::{
+            assert_only_admin_can_call_this_function,
+            assert_only_admin_or_minter_can_mint,
+        },
         nft::parse_token_id_from_string_to_uint128,
     },
 };
@@ -37,7 +41,7 @@ use cw404::{
     config::Config,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg},
 };
-use cw_utils::nonpayable;
+use cw_utils::{may_pay, nonpayable};
 use osmosis_std::types::{
     cosmos::bank::v1beta1::{DenomUnit, Metadata},
     osmosis::tokenfactory::v1beta1::{
@@ -126,15 +130,13 @@ pub fn instantiate(
                 .admin
                 .clone()
                 .map(|addr| deps.api.addr_validate(&addr).unwrap()),
-            minter: msg
-                .minter
-                .clone()
-                .map(|addr| deps.api.addr_validate(&addr).unwrap()),
+            minter: deps.api.addr_validate(&msg.minter)?,
             creator: deps.api.addr_validate(&msg.creator)?,
             denom_metadata: metadata.clone(),
-            royalty_payment_address: msg
-                .royalty_payment_address
-                .map(|addr| deps.api.addr_validate(&addr).unwrap()),
+            royalty_payment_address: deps
+                .api
+                .addr_validate(&msg.royalty_payment_address)
+                .unwrap(),
             royalty_percentage: msg.royalty_percentage,
         },
     )?;
@@ -170,13 +172,7 @@ pub fn instantiate(
                 None => "None".to_string(),
             },
         )
-        .add_attribute(
-            "minter_addr",
-            match msg.minter {
-                Some(addr) => addr,
-                None => "None".to_string(),
-            },
-        )
+        .add_attribute("minter_addr", msg.minter)
         .add_attribute("creator_addr", msg.creator)
         .add_attribute("denom", denom)
         .add_attribute("base_denom", base_denom)
@@ -191,11 +187,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     let info_ref = &info;
-    nonpayable(info_ref)?;
     let contract_addr_ref = &env.contract.address;
     let sender_addr_ref = &info.clone().sender;
     let config_ref = &CONFIG.load(deps.storage)?;
-    let admin_addr_ref = &config_ref.admin;
     let one_denom_in_base_denom = Uint128::from(10u128.pow(DENOM_EXPONENT));
     let base_denom = config_ref.denom_metadata.base.as_str();
     match msg {
@@ -205,9 +199,10 @@ pub fn execute(
             new_royalty_payment_address,
             new_royalty_percentage,
         } => {
+            nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                admin_addr_ref,
+                &config_ref.admin,
                 "update_admin",
             )?;
             update_config(
@@ -220,27 +215,39 @@ pub fn execute(
             )
         }
         // ======== FT (cosmos sdk native coin) functions ==========
-        ExecuteMsg::MintFt { amount, recipient } => {
-            assert_only_admin_can_call_this_function(
+        ExecuteMsg::MintFt {
+            amount,
+            recipient,
+            mint_group_name,
+            merkle_proof,
+        } => {
+            let user_paid_amount = may_pay(info_ref, FEE_DENOM)?;
+            assert_only_admin_or_minter_can_mint(
                 sender_addr_ref,
-                admin_addr_ref,
-                "mint_ft",
+                &config_ref.admin,
+                &config_ref.minter,
             )?;
             mint_ft(
                 deps.storage,
                 deps.querier,
+                &env.block,
+                config_ref,
                 amount,
                 one_denom_in_base_denom,
                 base_denom,
                 config_ref.denom_metadata.uri.as_str(),
                 contract_addr_ref,
                 &deps.api.addr_validate(&recipient)?,
+                user_paid_amount,
+                mint_group_name.as_str(),
+                merkle_proof,
             )
         }
         ExecuteMsg::BurnFt { amount } => {
+            nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                admin_addr_ref,
+                &config_ref.admin,
                 "burn_ft",
             )?;
             burn_ft(
@@ -253,9 +260,10 @@ pub fn execute(
             )
         }
         ExecuteMsg::ForceTransferFt { amount, from, to } => {
+            nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                admin_addr_ref,
+                &config_ref.admin,
                 "force_transfer_ft",
             )?;
             force_transfer_ft(
@@ -275,70 +283,92 @@ pub fn execute(
             spender,
             token_id,
             expires,
-        } => approve_nft(
-            deps.storage,
-            &env.block,
-            sender_addr_ref,
-            &deps.api.addr_validate(&spender)?,
-            parse_token_id_from_string_to_uint128(token_id)?,
-            expires,
-        ),
-        ExecuteMsg::ApproveAll { operator, expires } => approve_all_nft(
-            deps.storage,
-            &env.block,
-            sender_addr_ref,
-            &deps.api.addr_validate(&operator)?,
-            expires,
-        ),
-        ExecuteMsg::Revoke { spender, token_id } => revoke_nft(
-            deps.storage,
-            &env.block,
-            sender_addr_ref,
-            &deps.api.addr_validate(&spender)?,
-            parse_token_id_from_string_to_uint128(token_id)?,
-        ),
-        ExecuteMsg::RevokeAll { operator } => revoke_all_nft(
-            deps.storage,
-            sender_addr_ref,
-            &deps.api.addr_validate(&operator)?,
-        ),
+        } => {
+            nonpayable(info_ref)?;
+            approve_nft(
+                deps.storage,
+                &env.block,
+                sender_addr_ref,
+                &deps.api.addr_validate(&spender)?,
+                parse_token_id_from_string_to_uint128(token_id)?,
+                expires,
+            )
+        }
+        ExecuteMsg::ApproveAll { operator, expires } => {
+            nonpayable(info_ref)?;
+
+            approve_all_nft(
+                deps.storage,
+                &env.block,
+                sender_addr_ref,
+                &deps.api.addr_validate(&operator)?,
+                expires,
+            )
+        }
+        ExecuteMsg::Revoke { spender, token_id } => {
+            nonpayable(info_ref)?;
+            revoke_nft(
+                deps.storage,
+                &env.block,
+                sender_addr_ref,
+                &deps.api.addr_validate(&spender)?,
+                parse_token_id_from_string_to_uint128(token_id)?,
+            )
+        }
+        ExecuteMsg::RevokeAll { operator } => {
+            nonpayable(info_ref)?;
+            revoke_all_nft(
+                deps.storage,
+                sender_addr_ref,
+                &deps.api.addr_validate(&operator)?,
+            )
+        }
         ExecuteMsg::TransferNft {
             recipient,
             token_id,
-        } => transfer_nft(
-            deps.storage,
-            &env.block,
-            sender_addr_ref,
-            &deps.api.addr_validate(&recipient)?,
-            parse_token_id_from_string_to_uint128(token_id)?,
-            one_denom_in_base_denom,
-            base_denom,
-            contract_addr_ref,
-        ),
+        } => {
+            nonpayable(info_ref)?;
+            transfer_nft(
+                deps.storage,
+                &env.block,
+                sender_addr_ref,
+                &deps.api.addr_validate(&recipient)?,
+                parse_token_id_from_string_to_uint128(token_id)?,
+                one_denom_in_base_denom,
+                base_denom,
+                contract_addr_ref,
+            )
+        }
         ExecuteMsg::SendNft {
             contract,
             token_id,
             msg,
-        } => send_nft(
-            deps.storage,
-            &env.block,
-            sender_addr_ref,
-            parse_token_id_from_string_to_uint128(token_id)?,
-            one_denom_in_base_denom,
-            base_denom,
-            contract_addr_ref,
-            &deps.api.addr_validate(&contract)?,
-            msg,
-        ),
-        ExecuteMsg::Burn { token_id } => burn_nft(
-            deps.storage,
-            &env.block,
-            contract_addr_ref,
-            parse_token_id_from_string_to_uint128(token_id)?,
-            one_denom_in_base_denom,
-            base_denom,
-            sender_addr_ref,
-        ),
+        } => {
+            nonpayable(info_ref)?;
+            send_nft(
+                deps.storage,
+                &env.block,
+                sender_addr_ref,
+                parse_token_id_from_string_to_uint128(token_id)?,
+                one_denom_in_base_denom,
+                base_denom,
+                contract_addr_ref,
+                &deps.api.addr_validate(&contract)?,
+                msg,
+            )
+        }
+        ExecuteMsg::Burn { token_id } => {
+            nonpayable(info_ref)?;
+            burn_nft(
+                deps.storage,
+                &env.block,
+                contract_addr_ref,
+                parse_token_id_from_string_to_uint128(token_id)?,
+                one_denom_in_base_denom,
+                base_denom,
+                sender_addr_ref,
+            )
+        }
     }
 }
 

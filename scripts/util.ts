@@ -28,3 +28,4 @@ export const getSigningClient = async () => {
 export const getQueryClient = async () => {
   return await CosmWasmClient.connect(RPC_ENDPOINT);
 };
+

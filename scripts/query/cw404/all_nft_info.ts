@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { getQueryClient } from "../util";
+import { getQueryClient } from "../../util";
 
 const run = async () => {
   const { cw404ContractAddress } = JSON.parse(
@@ -7,12 +7,19 @@ const run = async () => {
   );
   const queryClient = await getQueryClient();
 
+  const tokenId = 1;
+
   await queryClient
     .queryContractSmart(cw404ContractAddress, {
-      contract_info: {},
+      all_nft_info: {
+        token_id: tokenId.toString(),
+        include_expired: false,
+      },
     })
     .then((res) => {
-      console.log("NFT contract info", JSON.stringify(res));
+      console.log(
+        `NFT token id ${tokenId}'s token info ${JSON.stringify(res)}`
+      );
     });
 };
 

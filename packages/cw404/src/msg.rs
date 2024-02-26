@@ -14,10 +14,10 @@ use cw_utils::Expiration;
 #[cw_serde]
 pub struct InstantiateMsg {
     pub admin: Option<String>,
-    pub minter: Option<String>,
+    pub minter: String,
     pub creator: String,
-    pub royalty_payment_address: Option<String>,
-    pub royalty_percentage: Option<Uint64>,
+    pub royalty_payment_address: String,
+    pub royalty_percentage: Uint64,
     pub max_nft_supply: Uint128,
     // e.g. subdenom = atom, then base subdenom is uatom,
     // denom is factory/contract_addr/atom, base denom is factory/contract_addr/uatom
@@ -48,8 +48,12 @@ pub enum ExecuteMsg {
     MintFt {
         /// amount is in base denom, e.g. uatom
         amount: Uint128,
-        // recipient address
+        /// recipient address
         recipient: String,
+        /// mint group name
+        mint_group_name: String,
+        /// merkle proof for recipient address
+        merkle_proof: Option<Vec<Vec<u8>>>,
     },
     /// Burn FT
     /// Only admin can execute this

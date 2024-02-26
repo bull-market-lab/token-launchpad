@@ -1,1 +1,2 @@
-fe835bca5a210506c8611c50b4e4289aefb816dc66d714bc6833661de8b8ef49  cw404_base-aarch64.wasm
+601114b02d9ba078b87a4f79c68a0b14d53cf4c3652ea61d724ed05905cac2dd  cw404_base-aarch64.wasm
+f03a19e120f1dedb2deef254d2ab454076a7d8e0847bc6ddfae6f9ca5947b0c8  launchpad-aarch64.wasm

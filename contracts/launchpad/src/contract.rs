@@ -64,7 +64,6 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     let info_ref = &info;
-    nonpayable(info_ref)?;
     let sender_addr_ref = &info.clone().sender;
     let config_ref = &CONFIG.load(deps.storage)?;
     match msg {
@@ -123,15 +122,20 @@ pub fn execute(
         }
         ExecuteMsg::MintFt {
             collection_addr,
-            recipient_addr,
+            amount,
+            recipient,
+            mint_group_name,
+            merkle_proof,
         } => {
-            let creator_paid_amount = may_pay(info_ref, FEE_DENOM)?;
+            let user_paid_amount = may_pay(info_ref, FEE_DENOM)?;
             mint_ft(
-                &deps.querier,
                 config_ref,
                 deps.api.addr_validate(&collection_addr)?,
-                deps.api.addr_validate(&recipient_addr)?,
-                creator_paid_amount,
+                deps.api.addr_validate(&recipient)?,
+                user_paid_amount,
+                amount,
+                mint_group_name,
+                merkle_proof,
             )
         }
     }

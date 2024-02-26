@@ -26,8 +26,8 @@ pub enum ExecuteMsg {
         new_mint_fee: Option<Uint128>,
     },
     CreateCollection {
-        royalty_payment_address: Option<String>,
-        royalty_percentage: Option<Uint64>,
+        royalty_payment_address: String,
+        royalty_percentage: Uint64,
         max_nft_supply: Uint128,
         // e.g. subdenom = atom, then base subdenom is uatom,
         // denom is factory/contract_addr/atom, base denom is factory/contract_addr/uatom
@@ -42,8 +42,16 @@ pub enum ExecuteMsg {
     },
     /// Call 404's mint_ft function and get NFT implicitly
     MintFt {
+        /// collection address
         collection_addr: String,
-        recipient_addr: String,
+        /// amount is in base denom, e.g. uatom
+        amount: Uint128,
+        /// recipient address
+        recipient: String,
+        /// mint group name
+        mint_group_name: String,
+        /// merkle proof for recipient address
+        merkle_proof: Option<Vec<Vec<u8>>>,
     },
     // TODO: implement this
     // Call 404's mint_nft (to be added) function and get FT implicitly

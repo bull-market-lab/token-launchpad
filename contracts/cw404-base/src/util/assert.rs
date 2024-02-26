@@ -26,6 +26,20 @@ pub fn assert_only_admin_can_call_this_function(
     Ok(())
 }
 
+pub fn assert_only_admin_or_minter_can_mint(
+    sender: &Addr,
+    admin: &Option<Addr>,
+    minter: &Addr,
+) -> Result<(), ContractError> {
+    if admin.is_some() && sender == admin.as_ref().unwrap() {
+        return Ok(());
+    }
+    if sender == minter {
+        return Ok(());
+    }
+    Err(ContractError::OnlyAdminOrMinterCanMint {})
+}
+
 pub fn assert_max_base_denom_supply_not_reached(
     current_base_denom_supply: Uint128,
     max_base_denom_supply: Uint128,

@@ -15,17 +15,17 @@ pub fn update_config(
         None => config.admin,
     };
     config.minter = match new_minter {
-        Some(minter) => Some(api.addr_validate(&minter)?),
+        Some(minter) => api.addr_validate(&minter)?,
         None => config.minter,
     };
     config.royalty_payment_address = match new_royalty_payment_address {
         Some(royalty_payment_address) => {
-            Some(api.addr_validate(&royalty_payment_address)?)
+            api.addr_validate(&royalty_payment_address)?
         }
         None => config.royalty_payment_address,
     };
     config.royalty_percentage = match new_royalty_percentage {
-        Some(royalty_percentage) => Some(royalty_percentage),
+        Some(royalty_percentage) => royalty_percentage,
         None => config.royalty_percentage,
     };
     CONFIG.save(storage, &config)?;

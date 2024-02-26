@@ -1,17 +1,15 @@
 use crate::{
     error::ContractError,
-    state::MAX_NFT_SUPPLY,
-    util::{
-        assert::assert_max_base_denom_supply_not_reached,
-        nft::{
-            batch_burn_nft, batch_mint_nft, calculate_nft_to_burn_for_ft_burn,
-            calculate_nft_to_mint_for_ft_mint,
-        },
+    state::FEE_DENOM,
+    util::nft::{
+        assert_can_mint, batch_burn_nft, batch_mint_nft,
+        calculate_nft_to_burn_for_ft_burn, calculate_nft_to_mint_for_ft_mint,
     },
 };
 use cosmwasm_std::{
-    coins, Addr, BankMsg, QuerierWrapper, Response, Storage, Uint128,
+    coins, Addr, BankMsg, BlockInfo, QuerierWrapper, Response, Storage, Uint128,
 };
+use cw404::config::Config;
 use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as SdkCoin,
     osmosis::tokenfactory::v1beta1::{MsgBurn, MsgForceTransfer, MsgMint},
@@ -20,47 +18,63 @@ use osmosis_std::types::{
 pub fn mint_ft(
     storage: &mut dyn Storage,
     querier: QuerierWrapper,
-    amount: Uint128,
+    block: &BlockInfo,
+    config: &Config,
+    mint_amount: Uint128,
     one_denom_in_base_denom: Uint128,
     base_denom: &str,
     base_uri: &str,
     contract_addr: &Addr,
     recipient_addr: &Addr,
+    user_paid_amount: Uint128,
+    mint_group_name: &str,
+    merkle_proof: Option<Vec<Vec<u8>>>,
 ) -> Result<Response, ContractError> {
-    let current_base_denom_supply = querier.query_supply(base_denom)?.amount;
-    let max_nft_supply = MAX_NFT_SUPPLY.load(storage)?;
-    assert_max_base_denom_supply_not_reached(
-        current_base_denom_supply,
-        max_nft_supply * one_denom_in_base_denom,
-        amount,
+    assert_can_mint(
+        storage,
+        querier,
+        block,
+        mint_amount,
+        one_denom_in_base_denom,
+        base_denom,
+        recipient_addr,
+        user_paid_amount,
+        mint_group_name,
+        merkle_proof,
     )?;
     let mint_nft_amount = calculate_nft_to_mint_for_ft_mint(
         querier,
         contract_addr,
         base_denom,
-        amount,
+        mint_amount,
         one_denom_in_base_denom,
     )?;
     batch_mint_nft(storage, base_uri, contract_addr, mint_nft_amount)?;
     let mint_ft_msg = MsgMint {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
-            amount: amount.to_string(),
+            amount: mint_amount.to_string(),
             denom: base_denom.to_string(),
         }),
         // TODO: test if we can mint straight to the recipient
         mint_to_address: contract_addr.to_string(),
     };
-    let send_ft_msg = BankMsg::Send {
+    let mut bank_msgs = vec![BankMsg::Send {
         to_address: recipient_addr.to_string(),
-        amount: coins(amount.u128(), base_denom),
-    };
+        amount: coins(mint_amount.u128(), base_denom),
+    }];
+    if !user_paid_amount.is_zero() {
+        bank_msgs.push(BankMsg::Send {
+            to_address: config.royalty_payment_address.to_string(),
+            amount: coins(user_paid_amount.u128(), FEE_DENOM),
+        });
+    }
     Ok(Response::new()
         .add_message(mint_ft_msg)
-        .add_message(send_ft_msg)
+        .add_messages(bank_msgs)
         .add_attribute("token_type", "ft")
         .add_attribute("action", "mint_ft")
-        .add_attribute("amount", amount)
+        .add_attribute("amount", mint_amount)
         .add_attribute("mint_nft_amount", mint_nft_amount))
 }
 

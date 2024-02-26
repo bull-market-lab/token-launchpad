@@ -1,7 +1,13 @@
-use super::assert::{assert_can_send, assert_can_update_approvals};
+use super::assert::{
+    assert_can_send, assert_can_update_approvals,
+    assert_max_base_denom_supply_not_reached,
+};
 use crate::{
     error::ContractError,
-    state::{CURRENT_NFT_SUPPLY, NFTS, RECYCLED_NFTS, RECYCLED_NFT_IDS},
+    state::{
+        CURRENT_NFT_SUPPLY, MAX_NFT_SUPPLY, MINT_GROUPS, NFTS, RECYCLED_NFTS,
+        RECYCLED_NFT_IDS,
+    },
 };
 use cosmwasm_std::{
     Addr, BlockInfo, Order, QuerierWrapper, StdError, StdResult, Storage,
@@ -15,6 +21,7 @@ use cw721_metadata_onchain::{
     Extension as NftExtension, Metadata as NftMetadata,
 };
 use cw_utils::Expiration;
+use sha3::{Digest, Keccak256};
 
 fn humanize_approval(approval: &Cw721BaseApproval) -> Cw721Approval {
     Cw721Approval {
@@ -41,6 +48,94 @@ pub fn parse_token_id_from_string_to_uint128(
         .parse::<u128>()
         .map_err(|_| StdError::generic_err("token_id is not a valid u128"))?;
     Ok(token_id_in_u128)
+}
+
+pub fn assert_can_mint(
+    storage: &mut dyn Storage,
+    querier: QuerierWrapper,
+    block: &BlockInfo,
+    mint_amount: Uint128,
+    one_denom_in_base_denom: Uint128,
+    base_denom: &str,
+    recipient_addr: &Addr,
+    user_paid_amount: Uint128,
+    mint_group_name: &str,
+    merkle_proof: Option<Vec<Vec<u8>>>,
+) -> Result<(), ContractError> {
+    let mint_group = MINT_GROUPS.may_load(storage, mint_group_name)?;
+    match mint_group {
+        Some(mg) => {
+            if block.time.seconds() < mg.start_time.u64() {
+                return Err(ContractError::MintGroupNotStarted {
+                    name: mint_group_name.to_string(),
+                });
+            }
+            if block.time.seconds() > mg.end_time.u64() {
+                return Err(ContractError::MintGroupEnded {
+                    name: mint_group_name.to_string(),
+                });
+            }
+            if mint_amount > mg.max_base_denom_amount_per_mint {
+                return Err(ContractError::MintAmountExceedsMaxAmountPerMint {
+                    name: mint_group_name.to_string(),
+                    mint_amount,
+                    max_base_denom_amount_per_mint: mg
+                        .max_base_denom_amount_per_mint,
+                });
+            }
+            let required_paid_amount = mg.price_per_base_denom * mint_amount;
+            if user_paid_amount < required_paid_amount {
+                return Err(ContractError::InsufficientFundsToMint {
+                    required: required_paid_amount,
+                    paid: user_paid_amount,
+                });
+            }
+            if mg.merkle_root.is_some() {
+                if merkle_proof.is_none() {
+                    return Err(
+                        ContractError::MerkleProofRequiredForMintGroup {
+                            name: mint_group_name.to_string(),
+                        },
+                    );
+                }
+                let mut hasher = Keccak256::new();
+                hasher.update(recipient_addr.to_string().as_bytes());
+                let recipient_hash = hasher.finalize().to_vec();
+                let mut calculated_root_hash: Vec<u8> = recipient_hash;
+                for proof_hash in merkle_proof.unwrap().into_iter() {
+                    let mut hasher = Keccak256::new();
+                    if calculated_root_hash < proof_hash {
+                        hasher.update(&calculated_root_hash);
+                        hasher.update(&proof_hash);
+                    } else {
+                        hasher.update(&proof_hash);
+                        hasher.update(&calculated_root_hash);
+                    }
+                    calculated_root_hash = hasher.finalize().to_vec();
+                }
+                if calculated_root_hash != mg.merkle_root.unwrap() {
+                    return Err(
+                        ContractError::InvalidMerkleProofForMintGroup {
+                            name: mint_group_name.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+        None => {
+            return Err(ContractError::MintGroupNotFound {
+                name: mint_group_name.to_string(),
+            });
+        }
+    }
+    let current_base_denom_supply = querier.query_supply(base_denom)?.amount;
+    let max_nft_supply = MAX_NFT_SUPPLY.load(storage)?;
+    assert_max_base_denom_supply_not_reached(
+        current_base_denom_supply,
+        max_nft_supply * one_denom_in_base_denom,
+        mint_amount,
+    )?;
+    Ok(())
 }
 
 pub fn calculate_nft_to_mint_for_ft_mint(

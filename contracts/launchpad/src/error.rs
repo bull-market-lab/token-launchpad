@@ -38,6 +38,9 @@ pub enum ContractError {
     #[error("Collection already exists {collection_addr:?}")]
     CollectionAlreadyExists { collection_addr: String },
 
-    #[error("Insufficient funds to create collection, paid: {paid:?}, required: {required:?}")]
+    #[error("Insufficient funds to create collection through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
     InsufficientFundsToCreateCollection { paid: Uint128, required: Uint128 },
+
+    #[error("Insufficient funds to mint NFT through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
+    InsufficientFundsToMintNft { paid: Uint128, required: Uint128 },
 }

@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { getQueryClient } from "../util";
+import { getQueryClient } from "../../util";
 
 const run = async () => {
   const { cw404ContractAddress } = JSON.parse(

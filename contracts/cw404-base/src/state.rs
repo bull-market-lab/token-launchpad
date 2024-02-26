@@ -10,6 +10,7 @@ use cw_utils::Expiration;
 pub const DEFAULT_LIMIT: u32 = 10;
 pub const MAX_LIMIT: u32 = 100;
 pub const DENOM_EXPONENT: u32 = 6;
+pub const FEE_DENOM: &str = "untrn";
 
 pub const CONFIG: Item<Config> = Item::new("CONFIG");
 

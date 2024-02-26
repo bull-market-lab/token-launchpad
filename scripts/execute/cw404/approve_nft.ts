@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { getSigningClient } from "../util";
+import { getSigningClient } from "../../util";
 
 const run = async () => {
   const { cw404ContractAddress } = JSON.parse(
@@ -7,14 +7,18 @@ const run = async () => {
   );
   const { signerAddress, siggingClient } = await getSigningClient();
 
-  const burnAmount = 2_500_000;
+  const spender = signerAddress;
+  const tokenId = 1;
+
   await siggingClient
     .execute(
       signerAddress,
       cw404ContractAddress,
       {
-        burn_ft: {
-          amount: burnAmount.toString(),
+        approve: {
+          spender,
+          token_id: tokenId.toString(),
+          expires: undefined,
         },
       },
       "auto",

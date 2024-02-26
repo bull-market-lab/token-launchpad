@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { getSigningClient } from "../util";
+import { getSigningClient } from "../../util";
 
 const run = async () => {
   const { cw404ContractAddress } = JSON.parse(
@@ -7,15 +7,17 @@ const run = async () => {
   );
   const { signerAddress, siggingClient } = await getSigningClient();
 
-  const operator = signerAddress;
+  const tokenId = 1;
+  const spender = signerAddress;
 
   await siggingClient
     .execute(
       signerAddress,
       cw404ContractAddress,
       {
-        revoke_all: {
-          operator,
+        revoke: {
+          spender,
+          token_id: tokenId.toString(),
         },
       },
       "auto",

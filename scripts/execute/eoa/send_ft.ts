@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { getSigningClient, getQueryClient } from "../util";
+import { getSigningClient, getQueryClient } from "../../util";
 
 const run = async () => {
   const { cw404ContractAddress } = JSON.parse(

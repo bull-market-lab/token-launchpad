@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { getSigningClient } from "../util";
+import { getSigningClient } from "../../util";
 
 const run = async () => {
   const { cw404ContractAddress } = JSON.parse(
@@ -8,15 +8,13 @@ const run = async () => {
   const { signerAddress, siggingClient } = await getSigningClient();
 
   const tokenId = 1;
-  const recipientAddress = signerAddress;
 
   await siggingClient
     .execute(
       signerAddress,
       cw404ContractAddress,
       {
-        send_ft: {
-          recipient: recipientAddress,
+        burn: {
           token_id: tokenId.toString(),
         },
       },
