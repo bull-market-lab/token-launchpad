@@ -7,7 +7,7 @@ use cosmwasm_std::{
     coins, to_json_binary, Addr, Api, BankMsg, CosmosMsg, QuerierWrapper,
     ReplyOn, Response, Storage, SubMsg, Uint128, Uint64, WasmMsg,
 };
-use cw404::msg::InstantiateMsg as Cw404InstantiateMsg;
+use cw404::{mint_group::MintGroup, msg::InstantiateMsg as Cw404InstantiateMsg};
 use launchpad_pkg::config::Config;
 
 pub fn update_config(
@@ -58,6 +58,7 @@ pub fn create_collecion(
     denom_symbol: String,
     denom_uri: String,
     denom_uri_hash: String,
+    mint_groups: Vec<MintGroup>,
 ) -> Result<Response, ContractError> {
     if creator_paid_amount < config.create_collection_fee {
         return Err(ContractError::InsufficientFundsToCreateCollection {
@@ -91,6 +92,7 @@ pub fn create_collecion(
                 denom_uri_hash,
                 royalty_payment_address,
                 royalty_percentage,
+                mint_groups,
             })
             .unwrap(),
             funds: vec![],

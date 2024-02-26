@@ -12,13 +12,12 @@ use crate::{
         config::query_config,
         ft::{query_balance, query_supply},
         nft::{
-            query_all_nft_infos, query_all_nfts, query_all_nfts_operators,
-            query_nft_approval, query_nft_approvals, query_nft_contract_info,
-            query_nft_info, query_nft_num_tokens, query_nft_operator,
-            query_nft_owner, query_nfts, query_recycled_nft_token_ids,
+            query_all_nft_infos, query_all_nfts, query_all_nfts_operators, query_nft_approval, query_nft_approvals, query_nft_contract_info, query_nft_info, query_nft_num_tokens, query_nft_operator, query_nft_owner, query_nfts, query_recycled_nft, query_recycled_nfts
         },
     },
-    state::{CONFIG, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, MAX_NFT_SUPPLY},
+    state::{
+        CONFIG, CURRENT_NFT_SUPPLY, DENOM_EXPONENT, MAX_NFT_SUPPLY, MINT_GROUPS,
+    },
     sudo::ft::block_before_send,
     util::{
         assert::assert_only_admin_can_call_this_function,
@@ -72,6 +71,19 @@ pub fn instantiate(
 
     MAX_NFT_SUPPLY.save(deps.storage, &msg.max_nft_supply)?;
     CURRENT_NFT_SUPPLY.save(deps.storage, &Uint128::zero())?;
+
+    for mint_group in msg.mint_groups {
+        MINT_GROUPS.update(
+            deps.storage,
+            mint_group.clone().name.as_str(),
+            |exist| match exist {
+                Some(_) => Err(ContractError::DuplicateMintGroup {
+                    name: mint_group.name,
+                }),
+                None => Ok(mint_group),
+            },
+        )?;
+    }
 
     let metadata = Metadata {
         description: msg.denom_description,
@@ -334,8 +346,16 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         // ======== general functions ==========
         QueryMsg::Config {} => to_json_binary(&query_config(config_ref)?),
-        QueryMsg::RecycledNftTokenIds {} => {
-            to_json_binary(&query_recycled_nft_token_ids(deps.storage)?)
+        QueryMsg::RecycledNftTokenIds {
+            start_after_idx,
+            limit,
+        } => to_json_binary(&query_recycled_nfts(
+            deps.storage,
+            start_after_idx,
+            limit,
+        )?),
+        QueryMsg::RecycledNftInfo { token_id } => {
+            to_json_binary(&query_recycled_nft(deps.storage, token_id)?)
         }
         QueryMsg::Supply {} => to_json_binary({
             &query_supply(

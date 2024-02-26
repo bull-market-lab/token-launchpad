@@ -1,11 +1,12 @@
-use crate::config::Config;
+use crate::{config::Config, mint_group::MintGroup};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, Coin, Empty, Uint128, Uint64};
+use cosmwasm_std::{Binary, Coin, Uint128, Uint64};
 use cw721::{
     AllNftInfoResponse, ApprovalResponse, ApprovalsResponse,
     ContractInfoResponse, NftInfoResponse, NumTokensResponse, OperatorResponse,
     OperatorsResponse, OwnerOfResponse, TokensResponse,
 };
+use cw721_metadata_onchain::Extension as NftExtension;
 use cw_utils::Expiration;
 
 // ========== instantiate ==========
@@ -27,6 +28,7 @@ pub struct InstantiateMsg {
     pub denom_symbol: String,
     pub denom_uri: String,
     pub denom_uri_hash: String,
+    pub mint_groups: Vec<MintGroup>,
 }
 
 // ========== execute ==========
@@ -129,7 +131,12 @@ pub enum QueryMsg {
     #[returns(ConfigResponse)]
     Config {},
     #[returns(RecycledNftTokenIdsResponse)]
-    RecycledNftTokenIds {},
+    RecycledNftTokenIds {
+        start_after_idx: Option<u32>,
+        limit: Option<u32>,
+    },
+    #[returns(NftInfoResponse<NftExtension>)]
+    RecycledNftInfo { token_id: Uint128 },
     #[returns(SupplyResponse)]
     Supply {},
     #[returns(BalanceResponse)]
@@ -181,12 +188,12 @@ pub enum QueryMsg {
     /// With MetaData Extension.
     /// Returns metadata about one particular token, based on *ERC721 Metadata JSON Schema*
     /// but directly from the contract: `NftInfoResponse`
-    #[returns(NftInfoResponse<Empty>)]
+    #[returns(NftInfoResponse<NftExtension>)]
     NftInfo { token_id: String },
     /// With MetaData Extension.
     /// Returns the result of both `NftInfo` and `OwnerOf` as one query as an optimization
     /// for clients: `AllNftInfo`
-    #[returns(AllNftInfoResponse<Empty>)]
+    #[returns(AllNftInfoResponse<NftExtension>)]
     AllNftInfo {
         token_id: String,
         /// unset or false will filter out expired approvals, you must set to true to see them

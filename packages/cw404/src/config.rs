@@ -1,3 +1,4 @@
+use crate::mint_group::MintGroup;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Uint64};
 use osmosis_std::types::cosmos::bank::v1beta1::Metadata as DenomMetadata;

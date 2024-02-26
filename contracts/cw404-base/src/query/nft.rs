@@ -1,7 +1,7 @@
 use crate::{
     state::{
         CURRENT_NFT_SUPPLY, DEFAULT_LIMIT, MAX_LIMIT, NFTS, NFT_OPERATORS,
-        RECYCLED_NFT_IDS,
+        RECYCLED_NFTS, RECYCLED_NFT_IDS,
     },
     util::nft::humanize_approvals,
 };
@@ -15,28 +15,46 @@ use cw721::{
     ContractInfoResponse, NftInfoResponse, NumTokensResponse, OperatorResponse,
     OperatorsResponse, OwnerOfResponse, TokensResponse,
 };
+use cw721_metadata_onchain::Extension as NftExtension;
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration};
 use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
-pub fn query_recycled_nft_token_ids(
+pub fn query_recycled_nfts(
     storage: &dyn Storage,
+    start_after_idx: Option<u32>,
+    limit: Option<u32>,
 ) -> StdResult<RecycledNftTokenIdsResponse> {
-    let recycled_nft_token_ids: Vec<Uint128> = RECYCLED_NFT_IDS
-        .iter(storage)?
-        .collect::<StdResult<Vec<_>>>()?;
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    let start = start_after_idx.unwrap_or(0);
+    let mut recycled_nft_token_ids: Vec<Uint128> = vec![];
+    for i in start..start + limit {
+        recycled_nft_token_ids
+            .push(Uint128::from(RECYCLED_NFT_IDS.get(storage, i)?.unwrap()));
+    }
     Ok(RecycledNftTokenIdsResponse {
         recycled_nft_token_ids,
+    })
+}
+
+pub fn query_recycled_nft(
+    storage: &dyn Storage,
+    token_id: Uint128,
+) -> StdResult<NftInfoResponse<NftExtension>> {
+    let recycled_nft = RECYCLED_NFTS.load(storage, token_id.u128())?;
+    Ok(NftInfoResponse {
+        token_uri: recycled_nft.token_uri,
+        extension: recycled_nft.extension,
     })
 }
 
 pub fn query_nft_owner(
     storage: &dyn Storage,
     block: &BlockInfo,
-    token_id: Uint128,
+    token_id: u128,
     include_expired: Option<bool>,
 ) -> StdResult<OwnerOfResponse> {
-    let nft = NFTS().load(storage, token_id.u128())?;
+    let nft = NFTS().load(storage, token_id)?;
     let approvals =
         humanize_approvals(block, &nft, include_expired.unwrap_or(false));
     Ok(OwnerOfResponse {
@@ -48,11 +66,11 @@ pub fn query_nft_owner(
 pub fn query_nft_approval(
     storage: &dyn Storage,
     block: &BlockInfo,
-    token_id: Uint128,
+    token_id: u128,
     spender: String,
     include_expired: Option<bool>,
 ) -> StdResult<ApprovalResponse> {
-    let nft = NFTS().load(storage, token_id.u128())?;
+    let nft = NFTS().load(storage, token_id)?;
 
     // token owner has absolute approval
     if nft.owner == spender {
@@ -88,10 +106,10 @@ pub fn query_nft_approval(
 pub fn query_nft_approvals(
     storage: &dyn Storage,
     block: &BlockInfo,
-    token_id: Uint128,
+    token_id: u128,
     include_expired: Option<bool>,
 ) -> StdResult<ApprovalsResponse> {
-    let nft = NFTS().load(storage, token_id.u128())?;
+    let nft = NFTS().load(storage, token_id)?;
     let approvals: Vec<_> = nft
         .approvals
         .into_iter()
@@ -184,9 +202,9 @@ pub fn query_nft_contract_info(
 
 pub fn query_nft_info(
     storage: &dyn Storage,
-    token_id: Uint128,
+    token_id: u128,
 ) -> StdResult<NftInfoResponse<Empty>> {
-    let nft = NFTS().load(storage, token_id.u128())?;
+    let nft = NFTS().load(storage, token_id)?;
     Ok(NftInfoResponse {
         token_uri: nft.token_uri,
         extension: Empty {},
@@ -196,10 +214,10 @@ pub fn query_nft_info(
 pub fn query_all_nft_infos(
     storage: &dyn Storage,
     env: Env,
-    token_id: Uint128,
+    token_id: u128,
     include_expired: Option<bool>,
 ) -> StdResult<AllNftInfoResponse<Empty>> {
-    let nft = NFTS().load(storage, token_id.u128())?;
+    let nft = NFTS().load(storage, token_id)?;
     Ok(AllNftInfoResponse {
         access: OwnerOfResponse {
             owner: nft.owner.to_string(),

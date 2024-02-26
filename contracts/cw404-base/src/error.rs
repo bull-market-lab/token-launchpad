@@ -10,6 +10,9 @@ pub enum ContractError {
     #[error("{0}")]
     Payment(#[from] PaymentError),
 
+    #[error("Duplicate mint group, name: {name:?}")]
+    DuplicateMintGroup { name: String },
+
     #[error("Only admin can call this function: {function:?}")]
     OnlyAdminCanCallThisFunction { function: String },
 
@@ -23,8 +26,8 @@ pub enum ContractError {
         mint_amount: Uint128,
     },
 
-    #[error("NFT Token ID {token_id:?} already in use")]
-    NftTokenIdAlreadyInUse { token_id: Uint128 },
+    #[error("NFT Token ID {nft_token_id:?} already in use")]
+    NftTokenIdAlreadyInUse { nft_token_id: Uint128 },
 
     #[error("No access to send NFT because grant expired")]
     NoAccessToSendNftCauseGrantExpired {},

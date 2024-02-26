@@ -33,7 +33,7 @@ cw-utils = "1.0.3"
 cw2 = "1.1.2"
 cw721 = "0.18.0"
 cw721-base = "0.18.0"
-cw2981-royalties = "0.18.0"
+cw721-metadata-onchain = "0.15.0"
 
 thiserror = "1.0.52"
 

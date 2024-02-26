@@ -12,3 +12,4 @@ backtraces = ["cosmwasm-std/backtraces"]
 cosmwasm-std = { workspace = true }
 cosmwasm-storage = { workspace = true }
 cosmwasm-schema = { workspace = true }
+cw404 = { workspace = true }

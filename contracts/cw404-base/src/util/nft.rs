@@ -1,16 +1,18 @@
 use super::assert::{assert_can_send, assert_can_update_approvals};
 use crate::{
     error::ContractError,
-    state::{CURRENT_NFT_SUPPLY, NFTS, RECYCLED_NFT_IDS},
+    state::{CURRENT_NFT_SUPPLY, NFTS, RECYCLED_NFTS, RECYCLED_NFT_IDS},
 };
 use cosmwasm_std::{
     Addr, BlockInfo, Order, QuerierWrapper, StdError, StdResult, Storage,
     Uint128,
 };
-use cw2981_royalties::{Extension as NftExtension, Metadata as NftMetadata};
 use cw721::Approval as Cw721Approval;
 use cw721_base::state::{
     Approval as Cw721BaseApproval, TokenInfo as NftTokenInfo,
+};
+use cw721_metadata_onchain::{
+    Extension as NftExtension, Metadata as NftMetadata,
 };
 use cw_utils::Expiration;
 
@@ -34,11 +36,11 @@ pub fn humanize_approvals(
 
 pub fn parse_token_id_from_string_to_uint128(
     token_id: String,
-) -> StdResult<Uint128> {
+) -> StdResult<u128> {
     let token_id_in_u128 = token_id
         .parse::<u128>()
         .map_err(|_| StdError::generic_err("token_id is not a valid u128"))?;
-    Ok(Uint128::from(token_id_in_u128))
+    Ok(token_id_in_u128)
 }
 
 pub fn calculate_nft_to_mint_for_ft_mint(
@@ -81,24 +83,34 @@ pub fn batch_mint_nft(
 ) -> Result<(), ContractError> {
     let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage)?;
     for i in 0..amount.u128() {
-        let token_id = if RECYCLED_NFT_IDS.is_empty(storage)? {
-            // token_id starts from 1, so when current_nft_supply is 0, the next token_id is 1
-            current_nft_supply + Uint128::from(1 + i)
-        } else {
-            RECYCLED_NFT_IDS.pop_front(storage)?.unwrap()
-        };
-        NFTS().update(storage, token_id.u128(), |old| match old {
-            Some(_) => Err(ContractError::NftTokenIdAlreadyInUse { token_id }),
-            None => Ok(NftTokenInfo {
+        let (nft_token_id, nft) = if RECYCLED_NFT_IDS.is_empty(storage)? {
+            let nft_token_id =
+                (current_nft_supply + Uint128::from(1 + i)).u128();
+            let nft = NftTokenInfo {
                 owner: owner_addr.clone(),
                 approvals: vec![],
-                token_uri: Some(format!("{}/{}", base_uri, token_id)),
+                token_uri: Some(format!(
+                    "{}/{}",
+                    base_uri,
+                    current_nft_supply + Uint128::from(1 + i)
+                )),
                 extension: Some(NftMetadata {
-                    royalty_payment_address: None,
-                    royalty_percentage: None,
+                    // TODO: add metadata
                     ..NftMetadata::default()
                 }),
+            };
+            (nft_token_id, nft)
+        } else {
+            let recycled_nft_id = RECYCLED_NFT_IDS.pop_front(storage)?.unwrap();
+            let recycled_nft = RECYCLED_NFTS.load(storage, recycled_nft_id)?;
+            RECYCLED_NFTS.remove(storage, recycled_nft_id);
+            (recycled_nft_id, recycled_nft)
+        };
+        NFTS().update(storage, nft_token_id, |old| match old {
+            Some(_) => Err(ContractError::NftTokenIdAlreadyInUse {
+                nft_token_id: Uint128::from(nft_token_id),
             }),
+            None => Ok(nft),
         })?;
     }
     let updated_nft_supply = current_nft_supply + amount;
@@ -126,7 +138,9 @@ pub fn batch_burn_nft(
         });
     }
     for token_id in token_ids {
-        RECYCLED_NFT_IDS.push_back(storage, &Uint128::from(token_id))?;
+        RECYCLED_NFT_IDS.push_back(storage, &token_id)?;
+        let recycled_nft = NFTS().load(storage, token_id)?;
+        RECYCLED_NFTS.save(storage, token_id, &recycled_nft)?;
         NFTS().remove(storage, token_id)?;
     }
     let updated_nft_supply: Uint128 = current_nft_supply - amount;
@@ -139,12 +153,12 @@ pub fn update_approvals(
     block: &BlockInfo,
     sender_addr: &Addr,
     spender_addr: &Addr,
-    token_id: Uint128,
+    token_id: u128,
     // if add == false, remove. if add == true, remove then set with this expiration
     add: bool,
     expires: Option<Expiration>,
 ) -> Result<NftTokenInfo<NftExtension>, ContractError> {
-    let mut nft = NFTS().load(storage, token_id.u128())?;
+    let mut nft = NFTS().load(storage, token_id)?;
     // ensure we have permissions
     assert_can_update_approvals(storage, block, &nft.owner, sender_addr)?;
     // update the approval list (remove any for the same spender before adding)
@@ -162,7 +176,7 @@ pub fn update_approvals(
         };
         nft.approvals.push(approval);
     }
-    NFTS().save(storage, token_id.u128(), &nft)?;
+    NFTS().save(storage, token_id, &nft)?;
     Ok(nft)
 }
 
@@ -171,14 +185,14 @@ pub fn transfer_nft_helper(
     block: &BlockInfo,
     sender_addr: &Addr,
     recipient_addr: &Addr,
-    token_id: Uint128,
+    token_id: u128,
 ) -> Result<NftTokenInfo<NftExtension>, ContractError> {
-    let mut nft = NFTS().load(storage, token_id.u128())?;
+    let mut nft = NFTS().load(storage, token_id)?;
     // ensure we have permissions
     assert_can_send(storage, block, sender_addr, token_id)?;
     // set owner and remove existing approvals
     nft.owner = recipient_addr.clone();
     nft.approvals = vec![];
-    NFTS().save(storage, token_id.u128(), &nft)?;
+    NFTS().save(storage, token_id, &nft)?;
     Ok(nft)
 }

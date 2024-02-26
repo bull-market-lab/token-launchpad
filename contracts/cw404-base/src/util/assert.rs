@@ -46,9 +46,9 @@ pub fn assert_can_send(
     storage: &dyn Storage,
     block: &BlockInfo,
     sender_addr_ref: &Addr,
-    token_id: Uint128,
+    token_id: u128,
 ) -> Result<(), ContractError> {
-    let nft = NFTS().load(storage, token_id.u128())?;
+    let nft = NFTS().load(storage, token_id)?;
 
     // owner can send
     if nft.owner == sender_addr_ref {

@@ -1,6 +1,9 @@
 use crate::{
     error::ContractError,
-    state::{CURRENT_NFT_SUPPLY, NFTS, NFT_OPERATORS, RECYCLED_NFT_IDS},
+    state::{
+        CURRENT_NFT_SUPPLY, NFTS, NFT_OPERATORS, RECYCLED_NFTS,
+        RECYCLED_NFT_IDS,
+    },
     util::{
         assert::assert_can_send,
         nft::{transfer_nft_helper, update_approvals},
@@ -19,7 +22,7 @@ pub fn approve_nft(
     block: &BlockInfo,
     sender_addr: &Addr,
     spender_addr: &Addr,
-    token_id: Uint128,
+    token_id: u128,
     expires: Option<Expiration>,
 ) -> Result<Response, ContractError> {
     update_approvals(
@@ -35,7 +38,7 @@ pub fn approve_nft(
         .add_attribute("action", "approve")
         .add_attribute("sender", sender_addr)
         .add_attribute("spender", spender_addr)
-        .add_attribute("token_id", token_id))
+        .add_attribute("token_id", token_id.to_string()))
 }
 
 pub fn approve_all_nft(
@@ -62,7 +65,7 @@ pub fn revoke_nft(
     block: &BlockInfo,
     sender_addr: &Addr,
     spender_addr: &Addr,
-    token_id: Uint128,
+    token_id: u128,
 ) -> Result<Response, ContractError> {
     update_approvals(
         storage,
@@ -77,7 +80,7 @@ pub fn revoke_nft(
         .add_attribute("action", "revoke")
         .add_attribute("sender", sender_addr)
         .add_attribute("spender", spender_addr)
-        .add_attribute("token_id", token_id))
+        .add_attribute("token_id", token_id.to_string()))
 }
 
 pub fn revoke_all_nft(
@@ -97,7 +100,7 @@ pub fn transfer_nft(
     block: &BlockInfo,
     sender_addr: &Addr,
     recipient_addr: &Addr,
-    token_id: Uint128,
+    token_id: u128,
     one_denom_in_base_denom: Uint128,
     base_denom: &str,
     contract_addr: &Addr,
@@ -117,14 +120,14 @@ pub fn transfer_nft(
         .add_attribute("action", "transfer_nft")
         .add_attribute("sender", sender_addr)
         .add_attribute("recipient", recipient_addr)
-        .add_attribute("token_id", token_id))
+        .add_attribute("token_id", token_id.to_string()))
 }
 
 pub fn send_nft(
     storage: &mut dyn Storage,
     block: &BlockInfo,
     sender_addr: &Addr,
-    token_id: Uint128,
+    token_id: u128,
     one_denom_in_base_denom: Uint128,
     base_denom: &str,
     contract_addr: &Addr,
@@ -158,22 +161,24 @@ pub fn send_nft(
         .add_attribute("action", "send_nft")
         .add_attribute("sender", sender_addr)
         .add_attribute("recipient", recipient_contract_addr)
-        .add_attribute("token_id", token_id))
+        .add_attribute("token_id", token_id.to_string()))
 }
 
 pub fn burn_nft(
-    storage_mut_ref: &mut dyn Storage,
+    storage: &mut dyn Storage,
     block: &BlockInfo,
     contract_addr: &Addr,
-    token_id: Uint128,
+    token_id: u128,
     one_denom_in_base_denom: Uint128,
     base_denom: &str,
     sender_addr: &Addr,
 ) -> Result<Response, ContractError> {
-    let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage_mut_ref)?;
-    assert_can_send(storage_mut_ref, block, sender_addr, token_id)?;
-    RECYCLED_NFT_IDS.push_back(storage_mut_ref, &token_id)?;
-    NFTS().remove(storage_mut_ref, token_id.u128())?;
+    let current_nft_supply = CURRENT_NFT_SUPPLY.load(storage)?;
+    assert_can_send(storage, block, sender_addr, token_id)?;
+    let burned_nft = NFTS().load(storage, token_id)?;
+    RECYCLED_NFT_IDS.push_back(storage, &token_id)?;
+    RECYCLED_NFTS.save(storage, token_id, &burned_nft)?;
+    NFTS().remove(storage, token_id)?;
     let msg = MsgBurn {
         sender: contract_addr.to_string(),
         amount: Some(SdkCoin {
@@ -183,10 +188,10 @@ pub fn burn_nft(
         burn_from_address: sender_addr.to_string(),
     };
     let updated_nft_supply = current_nft_supply - Uint128::new(1);
-    CURRENT_NFT_SUPPLY.save(storage_mut_ref, &updated_nft_supply)?;
+    CURRENT_NFT_SUPPLY.save(storage, &updated_nft_supply)?;
     Ok(Response::new()
         .add_message(msg)
         .add_attribute("action", "burn")
         .add_attribute("sender", sender_addr)
-        .add_attribute("token_id", token_id))
+        .add_attribute("token_id", token_id.to_string()))
 }

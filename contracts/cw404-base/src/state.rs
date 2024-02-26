@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Uint128};
-use cw2981_royalties::Extension as NftExtension;
-use cw404::config::Config;
+use cw404::{config::Config, mint_group::MintGroup};
 use cw721_base::state::TokenInfo as NftTokenInfo;
+use cw721_metadata_onchain::Extension as NftExtension;
 use cw_storage_plus::{
     Deque, Index, IndexList, IndexedMap, Item, Map, MultiIndex,
 };
@@ -13,6 +13,8 @@ pub const DENOM_EXPONENT: u32 = 6;
 
 pub const CONFIG: Item<Config> = Item::new("CONFIG");
 
+pub const MINT_GROUPS: Map<&str, MintGroup> = Map::new("MINT_GROUPS");
+
 /// 1 NFT = 1 denom (e.g. ATOM) = 1 * 10 ** exponent base denom (uatom)
 /// e.g. 1 ATOM = 1_000_000 uatom when exponent = 6, ATOM is both denom (FT) and NFT
 pub const MAX_NFT_SUPPLY: Item<Uint128> = Item::new("MAX_NFT_SUPPLY");
@@ -22,7 +24,9 @@ pub const CURRENT_NFT_SUPPLY: Item<Uint128> = Item::new("CURRENT_NFT_SUPPLY");
 /// Recycled NFT IDs, avaliable for minting
 /// When burned, the NFT ID is recycled and added to end of the queue
 /// When minted, the NFT ID is removed from the front of the queue or created if empty
-pub const RECYCLED_NFT_IDS: Deque<Uint128> = Deque::new("RECYCLED_NFT_IDS");
+pub const RECYCLED_NFT_IDS: Deque<u128> = Deque::new("RECYCLED_NFT_IDS");
+pub const RECYCLED_NFTS: Map<u128, NftTokenInfo<NftExtension>> =
+    Map::new("RECYCLED_NFTS");
 
 /// Stored as (granter, operator) giving operator full control over granter's account
 pub const NFT_OPERATORS: Map<(&Addr, &Addr), Expiration> =

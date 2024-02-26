@@ -1,6 +1,7 @@
 use crate::config::Config;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64};
+use cw404::mint_group::MintGroup;
 
 // ========== instantiate ==========
 
@@ -37,6 +38,7 @@ pub enum ExecuteMsg {
         denom_symbol: String,
         denom_uri: String,
         denom_uri_hash: String,
+        mint_groups: Vec<MintGroup>,
     },
     /// Call 404's mint_ft function and get NFT implicitly
     MintFt {

@@ -101,6 +101,7 @@ pub fn execute(
             denom_symbol,
             denom_uri,
             denom_uri_hash,
+            mint_groups,
         } => {
             let creator_paid_amount = may_pay(info_ref, FEE_DENOM)?;
             create_collecion(
@@ -117,6 +118,7 @@ pub fn execute(
                 denom_symbol,
                 denom_uri,
                 denom_uri_hash,
+                mint_groups,
             )
         }
         ExecuteMsg::MintFt {
