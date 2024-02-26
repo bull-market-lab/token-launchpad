@@ -7,7 +7,9 @@ use cosmwasm_std::{
     coins, to_json_binary, Addr, Api, BankMsg, CosmosMsg, QuerierWrapper,
     ReplyOn, Response, Storage, SubMsg, Uint128, Uint64, WasmMsg,
 };
-use cw404::{mint_group::MintGroup, msg::InstantiateMsg as Cw404InstantiateMsg};
+use cw404::{
+    mint_group::MintGroup, msg::InstantiateMsg as Cw404InstantiateMsg,
+};
 use launchpad_pkg::config::Config;
 
 pub fn update_config(

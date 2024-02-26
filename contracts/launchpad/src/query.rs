@@ -34,7 +34,6 @@ pub fn query_creator_collections(
         .prefix(creator_addr)
         .keys(storage, start, None, Order::Ascending)
         .take(limit)
-        .map(|item| item.map(|k| k))
         .collect::<StdResult<Vec<_>>>()?;
     Ok(CollectionsResponse { collection_addrs })
 }

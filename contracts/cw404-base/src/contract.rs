@@ -12,7 +12,11 @@ use crate::{
         config::query_config,
         ft::{query_balance, query_supply},
         nft::{
-            query_all_nft_infos, query_all_nfts, query_all_nfts_operators, query_nft_approval, query_nft_approvals, query_nft_contract_info, query_nft_info, query_nft_num_tokens, query_nft_operator, query_nft_owner, query_nfts, query_recycled_nft, query_recycled_nfts
+            query_all_nft_infos, query_all_nfts, query_all_nfts_operators,
+            query_nft_approval, query_nft_approvals, query_nft_contract_info,
+            query_nft_info, query_nft_num_tokens, query_nft_operator,
+            query_nft_owner, query_nfts, query_recycled_nft,
+            query_recycled_nfts,
         },
     },
     state::{

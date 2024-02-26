@@ -6,8 +6,7 @@ use crate::{
     util::nft::humanize_approvals,
 };
 use cosmwasm_std::{
-    Addr, Api, BlockInfo, Empty, Env, Order, StdError, StdResult, Storage,
-    Uint128,
+    Addr, Api, BlockInfo, Env, Order, StdError, StdResult, Storage, Uint128,
 };
 use cw404::msg::RecycledNftTokenIdsResponse;
 use cw721::{
@@ -203,11 +202,11 @@ pub fn query_nft_contract_info(
 pub fn query_nft_info(
     storage: &dyn Storage,
     token_id: u128,
-) -> StdResult<NftInfoResponse<Empty>> {
+) -> StdResult<NftInfoResponse<NftExtension>> {
     let nft = NFTS().load(storage, token_id)?;
     Ok(NftInfoResponse {
         token_uri: nft.token_uri,
-        extension: Empty {},
+        extension: nft.extension,
     })
 }
 
@@ -216,7 +215,7 @@ pub fn query_all_nft_infos(
     env: Env,
     token_id: u128,
     include_expired: Option<bool>,
-) -> StdResult<AllNftInfoResponse<Empty>> {
+) -> StdResult<AllNftInfoResponse<NftExtension>> {
     let nft = NFTS().load(storage, token_id)?;
     Ok(AllNftInfoResponse {
         access: OwnerOfResponse {
@@ -229,7 +228,7 @@ pub fn query_all_nft_infos(
         },
         info: NftInfoResponse {
             token_uri: nft.token_uri,
-            extension: Empty {},
+            extension: nft.extension,
         },
     })
 }

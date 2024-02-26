@@ -76,7 +76,7 @@ pub fn execute(
             new_mint_fee,
         } => {
             nonpayable(info_ref)?;
-            if sender_addr_ref != &config_ref.admin {
+            if sender_addr_ref != config_ref.admin {
                 return Err(ContractError::OnlyAdminCanCallThisFunction {
                     function: "update_config".to_string(),
                 });
