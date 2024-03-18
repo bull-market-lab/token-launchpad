@@ -108,13 +108,13 @@ const init = async (
 };
 
 const run = async () => {
-  const { signerAddress, siggingClient } = await getSigningClient();
+  const { signerAddress, signingClient } = await getSigningClient();
   const { cw404CodeId, launchpadCodeId } = await storeCode(
     signerAddress,
-    siggingClient
+    signingClient
   );
 
-  await init(signerAddress, siggingClient, {
+  await init(signerAddress, signingClient, {
     cw404CodeId,
     launchpadCodeId,
   });

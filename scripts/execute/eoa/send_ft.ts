@@ -6,7 +6,7 @@ const run = async () => {
     fs.readFileSync("scripts/contract_addresses.json").toString()
   );
   const queryClient = await getQueryClient();
-  const { signerAddress, siggingClient } = await getSigningClient();
+  const { signerAddress, signingClient } = await getSigningClient();
   const sendAmount = 700;
   const recipientAddress = "neutron1d5k3kzd98683zcg6p8ev8h56tg6tk83pry02xx";
   const configResp = await queryClient.queryContractSmart(
@@ -16,7 +16,7 @@ const run = async () => {
     }
   );
   const baseDenom = configResp.config.denom_metadata.base;
-  await siggingClient
+  await signingClient
     .sendTokens(
       signerAddress,
       recipientAddress,

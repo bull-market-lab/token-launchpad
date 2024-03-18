@@ -6,13 +6,13 @@ const run = async () => {
   const { cw404ContractAddress } = JSON.parse(
     fs.readFileSync("scripts/contract_addresses.json").toString()
   );
-  const { signerAddress, siggingClient } = await getSigningClient();
+  const { signerAddress, signingClient } = await getSigningClient();
 
   const tokenId = 1;
   const receipientContractAddress =
     "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
 
-  await siggingClient
+  await signingClient
     .execute(
       signerAddress,
       cw404ContractAddress,

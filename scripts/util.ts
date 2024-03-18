@@ -1,6 +1,7 @@
 import {
   CosmWasmClient,
-  SigningCosmWasmClient, toBinary
+  SigningCosmWasmClient,
+  toBinary,
 } from "@cosmjs/cosmwasm-stargate";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { GasPrice } from "@cosmjs/stargate";
@@ -15,17 +16,16 @@ export const getSigningClient = async () => {
 
   const accounts = await offlineSigner.getAccounts();
   const signerAddress = accounts[0]!.address;
-  const siggingClient = await SigningCosmWasmClient.connectWithSigner(
+  const signingClient = await SigningCosmWasmClient.connectWithSigner(
     RPC_ENDPOINT,
     offlineSigner,
     {
       gasPrice: GasPrice.fromString(`0.04${CHAIN_DENOM}`),
     }
   );
-  return { signerAddress, siggingClient };
+  return { signerAddress, signingClient };
 };
 
 export const getQueryClient = async () => {
   return await CosmWasmClient.connect(RPC_ENDPOINT);
 };
-

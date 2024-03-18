@@ -5,9 +5,9 @@ const run = async () => {
   const { launchpadContractAddress } = JSON.parse(
     fs.readFileSync("scripts/contract_addresses.json").toString()
   );
-  const { signerAddress, siggingClient } = await getSigningClient();
+  const { signerAddress, signingClient } = await getSigningClient();
 
-  await siggingClient
+  await signingClient
     .execute(
       signerAddress,
       launchpadContractAddress,

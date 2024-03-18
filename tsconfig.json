@@ -12,6 +12,6 @@
     "allowSyntheticDefaultImports": true,
     "strict": true
   },
-  "include": ["scripts/*", "scripts/execute/cw404/burn_ft.ts", "scripts/execute/cw404/force_transfer_ft.ts", "scripts/execute/cw404/mint_ft.ts", "scripts/execute/contract_send_ft.ts", "scripts/query/cw404/config_and_balance_and_supply.ts"],
+  "include": ["scripts/*"],
   "exclude": ["node_modules"]
 }

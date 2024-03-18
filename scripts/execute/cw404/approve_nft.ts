@@ -5,12 +5,12 @@ const run = async () => {
   const { cw404ContractAddress } = JSON.parse(
     fs.readFileSync("scripts/contract_addresses.json").toString()
   );
-  const { signerAddress, siggingClient } = await getSigningClient();
+  const { signerAddress, signingClient } = await getSigningClient();
 
   const spender = signerAddress;
   const tokenId = 1;
 
-  await siggingClient
+  await signingClient
     .execute(
       signerAddress,
       cw404ContractAddress,
