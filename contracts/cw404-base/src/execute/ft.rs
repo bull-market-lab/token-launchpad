@@ -1,5 +1,4 @@
 use crate::{
-    error::ContractError,
     state::FEE_DENOM,
     util::nft::{
         assert_can_mint, batch_burn_nft, batch_mint_nft,
@@ -14,6 +13,7 @@ use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as SdkCoin,
     osmosis::tokenfactory::v1beta1::{MsgBurn, MsgForceTransfer, MsgMint},
 };
+use shared_pkg::error::ContractError;
 
 pub fn mint_ft(
     storage: &mut dyn Storage,
@@ -65,7 +65,7 @@ pub fn mint_ft(
     }];
     if !user_paid_amount.is_zero() {
         bank_msgs.push(BankMsg::Send {
-            to_address: config.royalty_payment_address.to_string(),
+            to_address: config.royalty_payment_addr.to_string(),
             amount: coins(user_paid_amount.u128(), FEE_DENOM),
         });
     }

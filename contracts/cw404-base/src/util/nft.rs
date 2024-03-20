@@ -2,12 +2,9 @@ use super::assert::{
     assert_can_send, assert_can_update_approvals,
     assert_max_base_denom_supply_not_reached,
 };
-use crate::{
-    error::ContractError,
-    state::{
-        CURRENT_NFT_SUPPLY, MAX_NFT_SUPPLY, MINT_GROUPS, NFTS, RECYCLED_NFTS,
-        RECYCLED_NFT_IDS,
-    },
+use crate::state::{
+    CURRENT_NFT_SUPPLY, MAX_NFT_SUPPLY, MINT_GROUPS, NFTS, RECYCLED_NFTS,
+    RECYCLED_NFT_IDS,
 };
 use cosmwasm_std::{
     Addr, BlockInfo, Order, QuerierWrapper, StdError, StdResult, Storage,
@@ -22,6 +19,7 @@ use cw721_metadata_onchain::{
 };
 use cw_utils::Expiration;
 use sha3::{Digest, Keccak256};
+use shared_pkg::error::ContractError;
 
 fn humanize_approval(approval: &Cw721BaseApproval) -> Cw721Approval {
     Cw721Approval {

@@ -1,5 +1,4 @@
 use crate::{
-    error::ContractError,
     execute::{
         config::update_config,
         ft::{burn_ft, force_transfer_ft, mint_ft},
@@ -48,6 +47,7 @@ use osmosis_std::types::{
         MsgCreateDenom, MsgSetBeforeSendHook, MsgSetDenomMetadata,
     },
 };
+use shared_pkg::error::ContractError;
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -126,16 +126,16 @@ pub fn instantiate(
     CONFIG.save(
         deps.storage,
         &Config {
-            admin: msg
-                .admin
+            admin_addr: msg
+                .admin_addr
                 .clone()
                 .map(|addr| deps.api.addr_validate(&addr).unwrap()),
-            minter: deps.api.addr_validate(&msg.minter)?,
-            creator: deps.api.addr_validate(&msg.creator)?,
+            minter_addr: deps.api.addr_validate(&msg.minter_addr)?,
+            creator_addr: deps.api.addr_validate(&msg.creator_addr)?,
             denom_metadata: metadata.clone(),
-            royalty_payment_address: deps
+            royalty_payment_addr: deps
                 .api
-                .addr_validate(&msg.royalty_payment_address)
+                .addr_validate(&msg.royalty_payment_addr)
                 .unwrap(),
             royalty_percentage: msg.royalty_percentage,
         },
@@ -167,13 +167,13 @@ pub fn instantiate(
         .add_attribute("contract_addr", env.contract.address)
         .add_attribute(
             "admin_addr",
-            match msg.admin {
+            match msg.admin_addr {
                 Some(addr) => addr,
                 None => "None".to_string(),
             },
         )
-        .add_attribute("minter_addr", msg.minter)
-        .add_attribute("creator_addr", msg.creator)
+        .add_attribute("minter_addr", msg.minter_addr)
+        .add_attribute("creator_addr", msg.creator_addr)
         .add_attribute("denom", denom)
         .add_attribute("base_denom", base_denom)
         .add_attribute("max_nft_supply", msg.max_nft_supply))
@@ -194,23 +194,23 @@ pub fn execute(
     let base_denom = config_ref.denom_metadata.base.as_str();
     match msg {
         ExecuteMsg::UpdateConfig {
-            new_admin,
-            new_minter,
-            new_royalty_payment_address,
+            new_admin_addr,
+            new_minter_addr,
+            new_royalty_payment_addr,
             new_royalty_percentage,
         } => {
             nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                &config_ref.admin,
+                &config_ref.admin_addr,
                 "update_admin",
             )?;
             update_config(
                 deps.api,
                 deps.storage,
-                new_admin,
-                new_minter,
-                new_royalty_payment_address,
+                new_admin_addr,
+                new_minter_addr,
+                new_royalty_payment_addr,
                 new_royalty_percentage,
             )
         }
@@ -224,8 +224,8 @@ pub fn execute(
             let user_paid_amount = may_pay(info_ref, FEE_DENOM)?;
             assert_only_admin_or_minter_can_mint(
                 sender_addr_ref,
-                &config_ref.admin,
-                &config_ref.minter,
+                &config_ref.admin_addr,
+                &config_ref.minter_addr,
             )?;
             mint_ft(
                 deps.storage,
@@ -247,7 +247,7 @@ pub fn execute(
             nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                &config_ref.admin,
+                &config_ref.admin_addr,
                 "burn_ft",
             )?;
             burn_ft(
@@ -263,7 +263,7 @@ pub fn execute(
             nonpayable(info_ref)?;
             assert_only_admin_can_call_this_function(
                 sender_addr_ref,
-                &config_ref.admin,
+                &config_ref.admin_addr,
                 "force_transfer_ft",
             )?;
             force_transfer_ft(

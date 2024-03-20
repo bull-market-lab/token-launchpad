@@ -1,11 +1,7 @@
-use crate::{
-    contract::REPLY_ID_INSTANTIATE_CW404_CONTRACT,
-    error::ContractError,
-    state::{CONFIG, FEE_DENOM},
-};
+use crate::{contract::REPLY_ID_INSTANTIATE_CW404_CONTRACT, state::FEE_DENOM};
 use cosmwasm_std::{
-    coins, to_json_binary, Addr, Api, BankMsg, CosmosMsg, ReplyOn, Response,
-    Storage, SubMsg, Uint128, Uint64, WasmMsg,
+    coins, to_json_binary, Addr, BankMsg, CosmosMsg, ReplyOn, Response, SubMsg,
+    Uint128, Uint64, WasmMsg,
 };
 use cw404::{
     mint_group::MintGroup,
@@ -14,47 +10,14 @@ use cw404::{
     },
 };
 use launchpad_pkg::config::Config;
+use shared_pkg::error::ContractError;
 
-pub fn update_config(
-    api: &dyn Api,
-    storage: &mut dyn Storage,
-    new_admin: Option<String>,
-    new_fee_collector: Option<String>,
-    new_cw404_code_id: Option<Uint64>,
-    new_create_collection_fee: Option<Uint128>,
-    new_mint_fee: Option<Uint128>,
-) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(storage)?;
-    config.admin = match new_admin {
-        Some(admin) => api.addr_validate(&admin)?,
-        None => config.admin,
-    };
-    config.fee_collector = match new_fee_collector {
-        Some(fee_collector) => api.addr_validate(&fee_collector)?,
-        None => config.fee_collector,
-    };
-    config.cw404_code_id = match new_cw404_code_id {
-        Some(cw404_code_id) => cw404_code_id,
-        None => config.cw404_code_id,
-    };
-    config.create_collection_fee = match new_create_collection_fee {
-        Some(create_collection_fee) => create_collection_fee,
-        None => config.create_collection_fee,
-    };
-    config.mint_fee = match new_mint_fee {
-        Some(mint_fee) => mint_fee,
-        None => config.mint_fee,
-    };
-    CONFIG.save(storage, &config)?;
-    Ok(Response::new().add_attribute("action", "update_config"))
-}
-
-pub fn create_collecion(
+pub fn create_cw404_collection(
     config: &Config,
-    launchpad_contract_addr: Addr,
+    launchpad_addr: Addr,
     creator_addr: Addr,
     creator_paid_amount: Uint128,
-    royalty_payment_address: String,
+    royalty_payment_addr: String,
     royalty_percentage: Uint64,
     max_nft_supply: Uint128,
     subdenom: String,
@@ -65,28 +28,29 @@ pub fn create_collecion(
     denom_uri_hash: String,
     mint_groups: Vec<MintGroup>,
 ) -> Result<Response, ContractError> {
-    if creator_paid_amount < config.create_collection_fee {
-        return Err(ContractError::InsufficientFundsToCreateCollection {
+    if creator_paid_amount < config.cw404_config.collection_creation_fee {
+        return Err(ContractError::InsufficientFundsToCreateCw404Collection {
             paid: creator_paid_amount,
-            required: config.create_collection_fee,
+            required: config.cw404_config.collection_creation_fee,
         });
     }
     let send_creation_fee_to_fee_collector_msg = BankMsg::Send {
-        to_address: config.fee_collector.to_string(),
+        to_address: config.cw404_config.fee_collector.to_string(),
         amount: coins(creator_paid_amount.u128(), FEE_DENOM),
     };
     let instantiate_cw404_collection_submsg = SubMsg {
         id: REPLY_ID_INSTANTIATE_CW404_CONTRACT,
         msg: CosmosMsg::Wasm(WasmMsg::Instantiate {
             admin: None,
-            code_id: config.cw404_code_id.u64(),
+            code_id: config.cw404_config.cw404_code_id.u64(),
             msg: to_json_binary(&Cw404InstantiateMsg {
                 // set to None so no one can burn or force transfer FT of the new CW404 collection
-                admin: None,
+                // TODO: support letting creator to mint / burn / force transfer FT
+                admin_addr: None,
                 // set minter to launchpad contract address so only launchpad contract can mint NFTs
                 // so all users mint through launchpad contract
-                minter: launchpad_contract_addr.to_string(),
-                creator: creator_addr.to_string(),
+                minter_addr: launchpad_addr.to_string(),
+                creator_addr: creator_addr.to_string(),
                 max_nft_supply,
                 subdenom,
                 denom_description,
@@ -94,7 +58,7 @@ pub fn create_collecion(
                 denom_symbol,
                 denom_uri,
                 denom_uri_hash,
-                royalty_payment_address,
+                royalty_payment_addr,
                 royalty_percentage,
                 mint_groups,
             })
@@ -108,11 +72,11 @@ pub fn create_collecion(
     Ok(Response::new()
         .add_submessage(instantiate_cw404_collection_submsg)
         .add_message(send_creation_fee_to_fee_collector_msg)
-        .add_attribute("action", "create_collection")
+        .add_attribute("action", "create_cw404_collection")
         .add_attribute("amount", creator_paid_amount))
 }
 
-pub fn mint_ft(
+pub fn mint_ft_of_cw404(
     config: &Config,
     collection_addr: Addr,
     recipient_addr: Addr,
@@ -121,7 +85,7 @@ pub fn mint_ft(
     mint_group_name: String,
     merkle_proof: Option<Vec<Vec<u8>>>,
 ) -> Result<Response, ContractError> {
-    let mint_fee = config.mint_fee;
+    let mint_fee = config.cw404_config.mint_fee;
     if user_paid_amount < mint_fee {
         return Err(ContractError::InsufficientFundsToMintNft {
             paid: user_paid_amount,
@@ -129,7 +93,7 @@ pub fn mint_ft(
         });
     }
     let send_mint_fee_to_fee_collector_msg = BankMsg::Send {
-        to_address: config.fee_collector.to_string(),
+        to_address: config.cw404_config.fee_collector.to_string(),
         amount: coins(mint_fee.u128(), FEE_DENOM),
     };
     let mint_msg = WasmMsg::Execute {
@@ -146,5 +110,5 @@ pub fn mint_ft(
     Ok(Response::new()
         .add_message(send_mint_fee_to_fee_collector_msg)
         .add_message(mint_msg)
-        .add_attribute("action", "mint_ft"))
+        .add_attribute("action", "mint_ft_of_cw_404"))
 }

@@ -1,12 +1,10 @@
-use crate::{
-    error::ContractError,
-    util::nft::{
-        batch_burn_nft, batch_mint_nft, calculate_nft_to_burn_for_ft_burn,
-        calculate_nft_to_mint_for_ft_mint,
-    },
+use crate::util::nft::{
+    batch_burn_nft, batch_mint_nft, calculate_nft_to_burn_for_ft_burn,
+    calculate_nft_to_mint_for_ft_mint,
 };
 use cosmwasm_std::{Addr, QuerierWrapper, Response, Storage, Uint128};
 use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
+use shared_pkg::error::ContractError;
 
 fn convert_to_base_denom_and_base_amount(
     denom: &str,

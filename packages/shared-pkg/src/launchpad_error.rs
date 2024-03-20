@@ -3,7 +3,7 @@ use cw_utils::PaymentError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
-pub enum ContractError {
+pub enum LaunchpadContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
@@ -39,7 +39,10 @@ pub enum ContractError {
     CollectionAlreadyExists { collection_addr: String },
 
     #[error("Insufficient funds to create collection through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
-    InsufficientFundsToCreateCollection { paid: Uint128, required: Uint128 },
+    InsufficientFundsToCreateCw404Collection {
+        paid: Uint128,
+        required: Uint128,
+    },
 
     #[error("Insufficient funds to mint NFT through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
     InsufficientFundsToMintNft { paid: Uint128, required: Uint128 },

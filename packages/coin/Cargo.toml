@@ -1,0 +1,16 @@
+[package]
+name = "coin"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cosmwasm-storage = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-utils = { workspace = true }
+osmosis-std = { workspace = true }

@@ -1,5 +1,4 @@
 use crate::{
-    error::ContractError,
     state::{
         CURRENT_NFT_SUPPLY, NFTS, NFT_OPERATORS, RECYCLED_NFTS,
         RECYCLED_NFT_IDS,
@@ -16,6 +15,7 @@ use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as SdkCoin,
     osmosis::tokenfactory::v1beta1::{MsgBurn, MsgForceTransfer},
 };
+use shared_pkg::error::ContractError;
 
 pub fn approve_nft(
     storage: &mut dyn Storage,

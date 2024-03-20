@@ -80,12 +80,64 @@ pub enum ContractError {
     #[error("Expired")]
     Expired {},
 
+    #[error(
+        "Error getting contract address from CW404 contract instantiation"
+    )]
+    ErrorGettingContractAddrFromInstantiateReplyOfCw404Contract {},
+
+    #[error(
+        "Error getting collection creator address from CW404 contract instantiation"
+    )]
+    ErrorGettingCreatorAddrFromInstantiateReplyOfCw404Contract {},
+
     #[error("Cannot parse token id {value:?} from string to Uint64")]
     CannotParseTokenIdFromStringToUint64 { value: String },
+
+    #[error("Error getting event from CW404 contract instantiation")]
+    ErrorGettingEventFromInstantiateReplyOfCw404Contract {},
 
     #[error("Mint group not found, name: {name:?}")]
     MintGroupNotFound { name: String },
 
-    #[error("Custom Error val: {val:?}")]
-    CustomError { val: String },
+    #[error("Insufficient funds to create collection through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
+    InsufficientFundsToCreateCw404Collection {
+        paid: Uint128,
+        required: Uint128,
+    },
+
+    #[error("Insufficient funds to create coin through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
+    InsufficientFundsToCreateCoin { paid: Uint128, required: Uint128 },
+
+    #[error("Insufficient funds to mint NFT through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
+    InsufficientFundsToMintNft { paid: Uint128, required: Uint128 },
+
+    #[error("Collection already exists {collection_addr:?}")]
+    CollectionAlreadyExists { collection_addr: String },
+
+    #[error("Coin already exists {coin_addr:?}")]
+    CoinAlreadyExists { coin_addr: String },
+
+    #[error("Cannot convert base denom to base subdenom {base_denom:?}")]
+    CannotConvertBaseDenomToBaseSubdenom { base_denom: String },
+
+    #[error("Error create pair in astroport {err:?}")]
+    ErrorCreatePairInAstroport { err: String },
+
+    #[error("Cannot find create pair event from astroport reply")]
+    CannotFindCreatePairEventFromAstroportReply {},
+
+    #[error("Cannot find pair from astroport reply")]
+    CannotFindPairFromAstroportReply {},
+
+    #[error("Cannot find created token from astroport reply")]
+    CannotFindCreatedTokenFromAstroportReply {},
+
+    #[error("Cannot find subdenom in tokens {subdenom:?}")]
+    CannotFindSubdenomToken { subdenom: String },
+
+    #[error("Cannot find seed liquidity config")]
+    CannotFindSeedLiquidityConfig {},
+
+    #[error("Unknown reply ID {reply_id:?}")]
+    UnknownReplyId { reply_id: u64 },
 }

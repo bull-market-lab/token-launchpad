@@ -1,8 +1,6 @@
-use crate::{
-    error::ContractError,
-    state::{NFTS, NFT_OPERATORS},
-};
+use crate::state::{NFTS, NFT_OPERATORS};
 use cosmwasm_std::{Addr, BlockInfo, Storage, Uint128};
+use shared_pkg::error::ContractError;
 
 pub fn assert_only_admin_can_call_this_function(
     sender: &Addr,

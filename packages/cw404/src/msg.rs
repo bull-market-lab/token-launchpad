@@ -13,10 +13,10 @@ use cw_utils::Expiration;
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub admin: Option<String>,
-    pub minter: String,
-    pub creator: String,
-    pub royalty_payment_address: String,
+    pub admin_addr: Option<String>,
+    pub minter_addr: String,
+    pub creator_addr: String,
+    pub royalty_payment_addr: String,
     pub royalty_percentage: Uint64,
     pub max_nft_supply: Uint128,
     // e.g. subdenom = atom, then base subdenom is uatom,
@@ -37,9 +37,9 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     // ========== FT functions ==========
     UpdateConfig {
-        new_admin: Option<String>,
-        new_minter: Option<String>,
-        new_royalty_payment_address: Option<String>,
+        new_admin_addr: Option<String>,
+        new_minter_addr: Option<String>,
+        new_royalty_payment_addr: Option<String>,
         new_royalty_percentage: Option<Uint64>,
     },
     // TODO: add reveal_metadata msg
@@ -111,16 +111,16 @@ pub struct ConfigResponse {
 pub struct SupplyResponse {
     pub current_nft_supply: Uint128,
     pub max_nft_supply: Uint128,
-    pub current_ft_supply: Uint128,
-    pub max_ft_supply: Uint128,
+    pub current_ft_supply_in_base_denom: Uint128,
+    pub max_ft_supply_in_base_denom: Uint128,
 }
 
 #[cw_serde]
 pub struct BalanceResponse {
-    /// balance in NFT which is equal to 10 ** exponent base denom
+    /// balance in NFT which is equal to (10 ^ exponent) * base denom
     pub nft_balance: Uint128,
     /// balance in base denom
-    pub ft_balance: Uint128,
+    pub ft_balance_in_base_denom: Uint128,
 }
 
 #[cw_serde]

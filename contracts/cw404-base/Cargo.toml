@@ -33,6 +33,7 @@ hex = { workspace = true }
 
 # my packages
 cw404 = { workspace = true }
+shared-pkg = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }

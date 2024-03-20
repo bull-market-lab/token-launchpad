@@ -27,7 +27,9 @@ thiserror = { workspace = true }
 
 # my packages
 cw404 = { workspace = true }
+coin = { workspace = true }
 launchpad-pkg = { workspace = true }
+shared-pkg = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
