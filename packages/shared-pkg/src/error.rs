@@ -100,10 +100,7 @@ pub enum ContractError {
     MintGroupNotFound { name: String },
 
     #[error("Insufficient funds to create collection through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
-    InsufficientFundsToCreateCw404Collection {
-        paid: Uint128,
-        required: Uint128,
-    },
+    FundsMisMatchToCreateCw404Collection { paid: Uint128, required: Uint128 },
 
     #[error("Insufficient funds to create coin through launchpad, paid: {paid:?}, launchpad required: {required:?}")]
     InsufficientFundsToCreateCoin { paid: Uint128, required: Uint128 },

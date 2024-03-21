@@ -7,7 +7,7 @@ This token launchpad contract supports 2 token standard
 
 ## CW404
 
-A [ERC-404](https://github.com/Pandora-Labs-Org/erc404) implementation in CosmWasm. Please see ERC-404 repo and [Pandora docs](https://pandoralabs.mintlify.app/introduction) for introduction to ERC-404.
+An [ERC-404](https://github.com/Pandora-Labs-Org/erc404) implementation in CosmWasm. Please see ERC-404 repo and [Pandora docs](https://pandoralabs.mintlify.app/introduction) for introduction to ERC-404.
 
 TLDR: CW404 is a new token standard for Cosmos chains. It enables native NFT fragmentation and it complies to Cosmos native token standard and CW721 NFT standard.
 
@@ -36,12 +36,10 @@ You can fork the contract and add a creation fee so you earn money when people c
 
 ### Note
 
-To make the token launch fairer, this contract will mint all the supply and deposit all the supply to the Astroport pool, and there will be no more mint in the future.
+To make the token launch fairer, this contract will mint all the supply and deposit all the supply to the Astroport pool, creator has the option to make the coin immutable so there will be no more mint in the future.
 
-The impact of this is at the beginning the pool is filled with create token and very little paired token (e.g. NTRN). Astroport pool has a max slippage of 50%, say if you create a token called MEME, paired with 1 NTRN as seed liquidity. After the pool is created, people can only buy up to 1 NTRN of MEME, then up to 2 NTRN, then 4, then 8, etc. If they try to buy 2 NTRN at the beginning, the slippage would be be 66.666% which exceeds the max slippage, causing swap to fail. So as token creator, if you want the token to be more buyable, it's recommended to provide more seed liquidity in paired token.
+The impact of depositing all supply to Astroport is at the beginning the pool could be filled with create token and very little paired token (e.g. NTRN). Astroport pool has a max slippage of 50%, say if you create a token called MEME, paired with 1 NTRN as seed liquidity. After the pool is created, people can only buy up to 1 NTRN of MEME, then up to 2 NTRN, then 4, then 8, etc. If they try to buy 2 NTRN at the beginning, the slippage would be be 66.666% which exceeds the max slippage, causing swap to fail. So as token creator, if you want the token to be more buyable, it's recommended to provide more seed liquidity in paired token.
 
 ### Warning
 
-Contract hasn't been thoroughly tested, use at your own risk.
-
-Currently for all tokens created through this launchpad, we set the admin of token to this contract, since admin can issue, burn or force transfer the token, meaning contract admin can migrate the contract to mint more token if he/she wants. We should set the admin of token to black hole address after token is created and minted to make the token immutable.
+Contract hasn't been audited, use at your own risk.

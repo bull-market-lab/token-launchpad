@@ -28,15 +28,18 @@ pub fn create_cw404_collection(
     denom_uri_hash: String,
     mint_groups: Vec<MintGroup>,
 ) -> Result<Response, ContractError> {
-    if creator_paid_amount < config.cw404_config.collection_creation_fee {
-        return Err(ContractError::InsufficientFundsToCreateCw404Collection {
+    if creator_paid_amount != config.cw404_config.collection_creation_fee {
+        return Err(ContractError::FundsMisMatchToCreateCw404Collection {
             paid: creator_paid_amount,
             required: config.cw404_config.collection_creation_fee,
         });
     }
     let send_creation_fee_to_fee_collector_msg = BankMsg::Send {
         to_address: config.cw404_config.fee_collector.to_string(),
-        amount: coins(creator_paid_amount.u128(), FEE_DENOM),
+        amount: coins(
+            config.cw404_config.collection_creation_fee.u128(),
+            FEE_DENOM,
+        ),
     };
     let instantiate_cw404_collection_submsg = SubMsg {
         id: REPLY_ID_INSTANTIATE_CW404_CONTRACT,

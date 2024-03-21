@@ -1,4 +1,4 @@
-use super::assert::{
+use super::assert_helper::{
     assert_can_send, assert_can_update_approvals,
     assert_max_base_denom_supply_not_reached,
 };

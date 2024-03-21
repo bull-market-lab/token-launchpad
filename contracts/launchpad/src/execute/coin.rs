@@ -30,9 +30,9 @@ pub fn create_coin(
     }
     let seed_liquidity =
         creator_paid_amount - config.coin_config.coin_creation_fee;
-    let send_creation_fee_to_fee_collector_msg = BankMsg::Send {
+    let send_creation_fee_to_fee_collector_msg: BankMsg = BankMsg::Send {
         to_address: config.coin_config.fee_collector.to_string(),
-        amount: coins(creator_paid_amount.u128(), FEE_DENOM),
+        amount: coins(config.coin_config.coin_creation_fee.u128(), FEE_DENOM),
     };
     let instantiate_coin_submsg = SubMsg {
         id: REPLY_ID_INSTANTIATE_CW404_CONTRACT,

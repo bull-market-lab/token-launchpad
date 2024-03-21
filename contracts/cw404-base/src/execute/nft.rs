@@ -4,7 +4,7 @@ use crate::{
         RECYCLED_NFT_IDS,
     },
     util::{
-        assert::assert_can_send,
+        assert_helper::assert_can_send,
         nft::{transfer_nft_helper, update_approvals},
     },
 };

@@ -24,29 +24,21 @@ use crate::{
     },
     sudo::ft::block_before_send,
     util::{
-        assert::{
+        assert_helper::{
             assert_only_admin_can_call_this_function,
             assert_only_admin_or_minter_can_mint,
         },
         nft::parse_token_id_from_string_to_uint128,
+        token_factory::create_and_mint_token,
     },
 };
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdResult, Uint128,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo,
+    Reply, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw404::{
-    config::Config,
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg},
-};
+use cw404::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
 use cw_utils::{may_pay, nonpayable};
-use osmosis_std::types::{
-    cosmos::bank::v1beta1::{DenomUnit, Metadata},
-    osmosis::tokenfactory::v1beta1::{
-        MsgCreateDenom, MsgSetBeforeSendHook, MsgSetDenomMetadata,
-    },
-};
 use shared_pkg::error::ContractError;
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -68,15 +60,6 @@ pub fn instantiate(
     let contract_info = env.contract.clone();
     let contract_addr = contract_info.address;
 
-    // e.g. atom
-    let subdenom = msg.subdenom;
-    // e.g. factory/contract_addr/atom
-    let denom = format!("factory/{}/{}", contract_addr, subdenom);
-    // e.g. uatom
-    let base_subdenom = format!("u{}", subdenom);
-    // e.g. factory/contract_addr/uatom
-    let base_denom = format!("factory/{}/{}", contract_addr, base_subdenom);
-
     MAX_NFT_SUPPLY.save(deps.storage, &msg.max_nft_supply)?;
     CURRENT_NFT_SUPPLY.save(deps.storage, &Uint128::zero())?;
 
@@ -93,78 +76,28 @@ pub fn instantiate(
         )?;
     }
 
-    let metadata = Metadata {
-        description: msg.denom_description,
-        denom_units: vec![
-            DenomUnit {
-                // e.g. factory/contract_addr/uatom
-                denom: base_denom.clone(),
-                exponent: 0,
-                // e.g. uatom
-                aliases: vec![base_subdenom.clone()],
-            },
-            DenomUnit {
-                // e.g. factory/contract_addr/atom
-                denom: denom.clone(),
-                exponent: DENOM_EXPONENT,
-                // e.g. atom
-                aliases: vec![subdenom],
-            },
-        ],
-        // e.g. factory/contract_addr/uatom
-        base: base_denom.clone(),
-        // e.g. factory/contract_addr/atom
-        display: denom.clone(),
-        // e.g. Cosmos Hub
-        name: msg.denom_name,
-        // e.g. ATOM
-        symbol: msg.denom_symbol,
-        uri: msg.denom_uri,
-        uri_hash: msg.denom_uri_hash,
-    };
-
-    CONFIG.save(
+    let create_and_mint_token_msgs = create_and_mint_token(
+        deps.api,
         deps.storage,
-        &Config {
-            admin_addr: msg
-                .admin_addr
-                .clone()
-                .map(|addr| deps.api.addr_validate(&addr).unwrap()),
-            minter_addr: deps.api.addr_validate(&msg.minter_addr)?,
-            creator_addr: deps.api.addr_validate(&msg.creator_addr)?,
-            denom_metadata: metadata.clone(),
-            royalty_payment_addr: deps
-                .api
-                .addr_validate(&msg.royalty_payment_addr)
-                .unwrap(),
-            royalty_percentage: msg.royalty_percentage,
-        },
+        &contract_addr,
+        msg.admin_addr.clone(),
+        &deps.api.addr_validate(&msg.minter_addr)?,
+        &deps.api.addr_validate(&msg.creator_addr)?,
+        &deps.api.addr_validate(&msg.royalty_payment_addr)?,
+        msg.royalty_percentage,
+        msg.subdenom.as_str(),
+        msg.denom_description.as_str(),
+        msg.denom_name.as_str(),
+        msg.denom_symbol.as_str(),
+        msg.denom_uri.as_str(),
+        msg.denom_uri_hash.as_str(),
     )?;
 
-    let msgs: Vec<CosmosMsg> = vec![
-        MsgCreateDenom {
-            sender: contract_addr.to_string(),
-            // e.g. uatom
-            subdenom: base_subdenom,
-        }
-        .into(),
-        MsgSetDenomMetadata {
-            sender: contract_addr.to_string(),
-            metadata: Some(metadata),
-        }
-        .into(),
-        MsgSetBeforeSendHook {
-            sender: contract_addr.to_string(),
-            // e.g. factory/contract_addr/uatom
-            denom: base_denom.clone(),
-            cosmwasm_address: contract_addr.to_string(),
-        }
-        .into(),
-    ];
     Ok(Response::new()
-        .add_messages(msgs)
+        .add_messages(create_and_mint_token_msgs)
         .add_attribute("action", "instantiate")
         .add_attribute("contract_addr", env.contract.address)
+        .add_attribute("subdenom", msg.subdenom)
         .add_attribute(
             "admin_addr",
             match msg.admin_addr {
@@ -174,8 +107,6 @@ pub fn instantiate(
         )
         .add_attribute("minter_addr", msg.minter_addr)
         .add_attribute("creator_addr", msg.creator_addr)
-        .add_attribute("denom", denom)
-        .add_attribute("base_denom", base_denom)
         .add_attribute("max_nft_supply", msg.max_nft_supply))
 }
 
@@ -296,7 +227,6 @@ pub fn execute(
         }
         ExecuteMsg::ApproveAll { operator, expires } => {
             nonpayable(info_ref)?;
-
             approve_all_nft(
                 deps.storage,
                 &env.block,

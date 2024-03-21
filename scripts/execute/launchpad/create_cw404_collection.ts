@@ -12,7 +12,7 @@ const run = async () => {
       signerAddress,
       launchpadContractAddress,
       {
-        create_collection: {
+        create_cw404_collection: {
           royalty_payment_address: signerAddress,
           royalty_percentage: "10",
           max_nft_supply: "1000",
@@ -31,7 +31,7 @@ const run = async () => {
       [
         {
           denom: "untrn",
-          amount: (10_000).toString(),
+          amount: (2_500).toString(),
         },
       ]
     )

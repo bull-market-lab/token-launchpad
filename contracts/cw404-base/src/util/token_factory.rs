@@ -1,11 +1,10 @@
 use crate::state::{CONFIG, DENOM_EXPONENT};
-use coin::{config::Config, msg::SeedLiquidityConfig};
-use cosmwasm_std::{Addr, Api, CosmosMsg, Storage, Uint128};
+use cosmwasm_std::{Addr, Api, CosmosMsg, Storage, Uint64};
+use cw404::config::Config;
 use osmosis_std::types::{
     cosmos::bank::v1beta1::{DenomUnit, Metadata},
-    cosmos::base::v1beta1::Coin as SdkCoin,
     osmosis::tokenfactory::v1beta1::{
-        MsgCreateDenom, MsgMint, MsgSetDenomMetadata,
+        MsgCreateDenom, MsgSetBeforeSendHook, MsgSetDenomMetadata,
     },
 };
 use shared_pkg::{
@@ -21,17 +20,17 @@ pub fn create_and_mint_token(
     storage: &mut dyn Storage,
     contract_addr: &Addr,
     admin_addr: Option<String>,
+    minter_addr: &Addr,
     creator_addr: &Addr,
-    initial_supply_in_base_denom: Uint128,
-    max_supply_in_base_denom: Uint128,
-    seed_liquidity_config: Option<SeedLiquidityConfig>,
+    royalty_payment_addr: &Addr,
+    royalty_percentage: Uint64,
     subdenom: &str,
     denom_description: &str,
     denom_name: &str,
     denom_symbol: &str,
     denom_uri: &str,
     denom_uri_hash: &str,
-) -> Result<(String, Vec<CosmosMsg>), ContractError> {
+) -> Result<Vec<CosmosMsg>, ContractError> {
     let (denom, base_subdenom, base_denom) = (
         convert_subdenom_to_denom(subdenom, contract_addr),
         convert_subdenom_to_base_subdenom(subdenom),
@@ -73,10 +72,11 @@ pub fn create_and_mint_token(
         &Config {
             admin_addr: admin_addr
                 .map(|addr| api.addr_validate(&addr).unwrap()),
+            minter_addr: minter_addr.clone(),
             creator_addr: creator_addr.clone(),
             denom_metadata: metadata.clone(),
-            max_supply_in_base_denom,
-            seed_liquidity_config,
+            royalty_payment_addr: royalty_payment_addr.clone(),
+            royalty_percentage,
         },
     )?;
     let msgs: Vec<CosmosMsg> = vec![
@@ -91,16 +91,14 @@ pub fn create_and_mint_token(
             metadata: Some(metadata),
         }
         .into(),
-        MsgMint {
+        MsgSetBeforeSendHook {
             sender: contract_addr.to_string(),
-            amount: Some(SdkCoin {
-                amount: initial_supply_in_base_denom.to_string(),
-                denom: base_denom.to_string(),
-            }),
-            mint_to_address: contract_addr.to_string(),
+            // e.g. factory/contract_addr/uatom
+            denom: base_denom.clone(),
+            cosmwasm_address: contract_addr.to_string(),
         }
         .into(),
     ];
 
-    Ok((base_denom, msgs))
+    Ok(msgs)
 }
